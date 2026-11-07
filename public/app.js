@@ -24,6 +24,22 @@ let R = null;          // last project result
 const REG = new Map(); // source registry: key -> {label, value, tag, source, url, checked}
 
 /* ---------------- tab navigation ---------------- */
+const TABS = [
+  { id: 'bill',  label: 'The bill' },
+  { id: 'time',  label: 'Time' },
+  { id: 'rate',  label: 'Rates' },
+  { id: 'donor', label: 'Donors' },
+  { id: 'memo',  label: 'Memo' },
+];
+
+const TAB_CONTEXT = {
+  bill: 'Enter your project on the left — the gap, funding stack, and timeline update live as you type.',
+  time: 'Every month waiting on permits adds real money to the bill. See which OC cities are fastest.',
+  rate: 'Higher mortgage rates mean smaller loans, lower prices, and bigger gaps.',
+  donor: 'Turn a gift amount into something concrete for a funder.',
+  memo: 'Export a one-page funder brief from these exact numbers. Claude writes, you review.',
+};
+
 function switchTab(name) {
   $$('.tab-page').forEach((p) => p.classList.remove('active'));
   const page = $(`#page-${name}`);
@@ -32,7 +48,39 @@ function switchTab(name) {
     setTimeout(() => $$('.reveal', page).forEach((el) => el.classList.add('in')), 40);
   }
   $$('.topnav [data-tab]').forEach((a) => a.classList.toggle('active', a.dataset.tab === name));
+  const ctx = $('#tabContext');
+  if (ctx) ctx.textContent = TAB_CONTEXT[name] || '';
+  // update back/next nav
+  const idx = TABS.findIndex((t) => t.id === name);
+  const prev = TABS[idx - 1];
+  const next = TABS[idx + 1];
+  const nav = $('#tabNav');
+  if (nav) {
+    nav.innerHTML = `
+      ${prev ? `<button class="btn ghost tab-nav-btn" data-go="${prev.id}">← ${prev.label}</button>` : '<span></span>'}
+      <div class="tab-nav-steps">${TABS.map((t, i) => `<span class="tn-dot ${t.id === name ? 'active' : ''}"></span>`).join('')}</div>
+      ${next ? `<button class="btn primary tab-nav-btn" data-go="${next.id}">Next: ${next.label} →</button>` : '<span></span>'}
+    `;
+    nav.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.go)));
+  }
   window.scrollTo(0, 0);
+}
+
+/* ---------------- first interaction reveal ---------------- */
+let interacted = false;
+function markInteracted() {
+  if (interacted) return;
+  interacted = true;
+  const hint = $('#stackHint');
+  const col = $('#stackCol');
+  if (hint) { hint.style.transition = 'opacity .3s'; hint.style.opacity = '0'; setTimeout(() => hint.remove(), 320); }
+  if (col) col.classList.add('ready');
+  // auto-expand programs after a short delay
+  setTimeout(() => {
+    const body = $('#programsBody');
+    const btn = $('#togglePrograms');
+    if (body && !body.classList.contains('open')) { body.classList.add('open'); if (btn) btn.textContent = 'Hide programs ▴'; }
+  }, 600);
 }
 
 /* ---------------- boot ---------------- */
@@ -75,16 +123,23 @@ function buildStatic() {
 
 /* ---------------- events ---------------- */
 function bind() {
-  $('#city').addEventListener('change', (e) => { S.juris = e.target.value; render(); });
+  $('#city').addEventListener('change', (e) => { S.juris = e.target.value; markInteracted(); render(); });
   $('#compareCity').addEventListener('change', (e) => { S.compare = e.target.value; render(); });
-  const num = (id, fn) => $(id).addEventListener('input', (e) => { fn(Number(e.target.value) || 0); render(); });
+  const num = (id, fn) => $(id).addEventListener('input', (e) => { fn(Number(e.target.value) || 0); markInteracted(); render(); });
   num('#costLand', (v) => (S.cost.land = v));
   num('#costCons', (v) => (S.cost.construction = v));
   num('#costFees', (v) => (S.cost.fees = v));
   num('#rentWait', (v) => (S.rentWhileWaiting = v));
   $('#assumeGrid').addEventListener('input', (e) => { const k = e.target.dataset.assume; if (k) { S.assumptions[k] = Number(e.target.value); render(); } });
-  $('#addRow').addEventListener('click', () => { S.homes.push({ count: 2, band: 'very_low', bedrooms: 2 }); render(true); });
-  $('#homeRows').addEventListener('input', (e) => {
+  $('#addRow').addEventListener('click', () => { markInteracted(); S.homes.push({ count: 2, band: 'very_low', bedrooms: 2 }); render(true); });
+  $('#togglePrograms')?.addEventListener('click', () => {
+    const body = $('#programsBody');
+    const btn = $('#togglePrograms');
+    const open = body.classList.toggle('open');
+    btn.textContent = open ? 'Hide programs ▴' : `Show ${D.programs.programs.length} programs ▾`;
+    btn.dataset.userToggled = '1';
+  });
+  $('#homeRows').addEventListener('input', (e) => { markInteracted();
     const i = Number(e.target.closest('.home-row')?.dataset.i);
     const f = e.target.dataset.f;
     if (Number.isNaN(i) || !f) return;
@@ -108,6 +163,7 @@ function bind() {
   gi.addEventListener('input', () => { S.gift = Number(gi.value) || 0; gs.value = S.gift; renderDonor(); });
   gs.addEventListener('input', () => { S.gift = Number(gs.value); gi.value = S.gift; renderDonor(); });
   $$('.topnav [data-tab]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); switchTab(a.dataset.tab); }));
+  $('#startBtn')?.addEventListener('click', () => { $('#city').focus(); $('#city').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
   $('#memoBtn').addEventListener('click', writeMemo);
   $('#copyMemo').addEventListener('click', () => { navigator.clipboard.writeText($('#memoOut').innerText); toast('Memo copied'); });
   $('#progBtn').addEventListener('click', draftProgram);
@@ -252,16 +308,8 @@ function renderHero() {
   tween($('#heroGap'), R.per.gap, fmtK);
   tween($('#heroTime'), R.per.timeCost, fmtK);
   tween($('#heroSubs'), R.per.subsidies, fmtK);
-  tween($('#heroTotal'), R.totals.fundraising);
-  $('#heroSub').innerHTML = `for <b>${n} home${n > 1 ? 's' : ''}</b> in <b>${titleCase(S.juris)}</b> at <b class="src" data-k="rate">${S.rate.toFixed(2)}%</b>`;
+  $('#heroSub').textContent = `${n} home${n > 1 ? 's' : ''} in ${titleCase(S.juris)}`;
   $('#heroRate').textContent = `${S.rate.toFixed(2)}%`;
-  tween($('#eqFam'), R.per.family, fmtK);
-  tween($('#eqSub'), R.per.subsidies, fmtK);
-  tween($('#eqRent'), R.per.rent, fmtK);
-  tween($('#eqRaise'), R.per.fundraising, fmtK);
-  tween($('#eqCost'), R.per.cost, fmtK);
-  const bal = R.per.family + R.per.subsidies + R.per.rent + R.per.fundraising - R.per.cost;
-  $('#eqBal').textContent = bal > 1 ? `+${fmtK(bal)} surplus` : '$0';
 }
 
 function renderWaterfall() {
@@ -351,6 +399,12 @@ function niceStep(raw) { const p = Math.pow(10, Math.floor(Math.log10(raw))); co
 function renderPrograms() {
   const h = R.homes[S.tab].result;
   const box = $('#programs');
+  const counted = h.stack.filter((s) => s.value > 0).length;
+  const total = D.programs.programs.length;
+  const meta = $('#programsMeta');
+  if (meta) meta.textContent = `${counted} of ${total} programs counted — ${fmt(R.per.subsidies)} per home.`;
+  const btn = $('#togglePrograms');
+  if (btn && !btn.dataset.userToggled) btn.textContent = `Show ${total} programs ▾`;
   if (S.overrides) {
     box.innerHTML = `<div class="prog"><div><div class="prog-name">Public subsidies <span class="tag SYNTHETIC">SYNTHETIC</span></div><div class="prog-terms">The organizers' placeholder city and state funds. Not real programs.</div></div><div class="prog-amt">${fmt(h.subsidies)}</div></div>`;
     return;
