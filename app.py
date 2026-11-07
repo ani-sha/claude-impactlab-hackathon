@@ -266,8 +266,16 @@ with tabs[4]:
                  "carrying_cost_label": "ASSUMPTION", "source": crow["source"]},
     }
     if not memo.available():
-        st.info("Add ANTHROPIC_API_KEY to a .env file to enable the memo. The facts Claude would receive:")
-        st.json(facts)
+        sample = json.loads((DATA / "sample_memo.json").read_text(encoding="utf-8"))
+        if json.loads(json.dumps(facts)) == sample["facts"]:
+            st.info("Example draft written with Claude for these default inputs (no API key set, so live drafting is off).")
+            with st.container(border=True):
+                st.markdown(sample["memo"])
+        else:
+            st.info("Live drafting needs ANTHROPIC_API_KEY in a .env file. The example draft matches the default "
+                    "inputs only; you changed them. The facts Claude would receive:")
+        with st.expander("Facts passed to Claude (every number comes from the engine)"):
+            st.json(facts)
     elif st.button("Draft memo with Claude", type="primary"):
         with st.spinner("Claude is drafting…"):
             st.session_state.memo = memo.draft_memo(facts)

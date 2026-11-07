@@ -68,7 +68,7 @@ Rebuild the timeline data: `python scripts/fetch_apr.py && python delay/build_ti
 | Gap, funding stack, waterfall, M01–M03 | working |
 | Program amounts for CalHome, WISH, AHP, OCHFT, Santa Ana | user-entered (terms not on page) |
 | Cost lines per home | synthetic defaults, user-editable |
-| Funder memo | working with an API key |
+| Funder memo | live with an API key; without one, shows an example draft written with Claude for the default inputs (labeled) |
 
 ## Where it gets things wrong
 
