@@ -26,22 +26,28 @@
   </div>
 
   <div class="land-center">
-    <div class="kicker land-in" style="--d:.05s">The $0 equation · Orange County</div>
-    <h1 class="land-title">
-      <span class="w land-in" style="--d:.15s">Every</span> <span class="w land-in" style="--d:.25s">home</span> <span class="w land-in" style="--d:.35s">has</span> <span class="w land-in" style="--d:.45s">to</span> <span class="w land-in" style="--d:.55s">hit</span> <span class="zero land-in" style="--d:.8s">$0</span><span class="land-in" style="--d:.9s">.</span>
-    </h1>
-    <p class="land-tag land-in" style="--d:1s">See the gap on every affordable home, what waiting on the city adds, and who can close it.</p>
-    <div class="land-cta land-in" style="--d:1.15s">
-      <button class="cta" id="startBtn"><span>Create new project</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-      <button class="cta-ghost" id="exampleBtn">Try the organizers' example</button>
+    <div class="land-copy">
+      <div class="kicker land-in" style="--d:.05s">Orange County · affordable homes</div>
+      <h1 class="land-title">
+        <span class="w land-in" style="--d:.15s">Every</span> <span class="w land-in" style="--d:.25s">home</span> <span class="w land-in" style="--d:.35s">has</span> <span class="w land-in" style="--d:.45s">to</span> <span class="w land-in" style="--d:.55s">hit</span> <span class="zero land-in" style="--d:.8s">$0</span><span class="land-in" style="--d:.9s">.</span>
+      </h1>
+      <p class="land-tag land-in" style="--d:1s">Find the gap. See what waiting costs. Close it.</p>
+      <div class="land-cta land-in" style="--d:1.15s">
+        <button class="cta" id="startBtn"><span>Create new project</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        <button class="cta-ghost" id="exampleBtn">Organizers' example</button>
+      </div>
     </div>
-  </div>
 
-  <div class="float-chips" aria-hidden="true">
-    <div class="fchip" style="--x:9%;--y:14%;--d:1.3s;--f:7s"><b id="chipRate">7.18%</b>30-yr rate today</div>
-    <div class="fchip" style="--x:78%;--y:22%;--d:1.5s;--f:8s"><b>$138,600</b>OC median income</div>
-    <div class="fchip hot" style="--x:84%;--y:56%;--d:1.7s;--f:6.5s"><b id="chipWait">27.8 mo</b>longest wait to permit</div>
-    <div class="fchip" style="--x:4%;--y:60%;--d:1.9s;--f:7.5s"><b id="chipProjects">21,477</b>state-reported projects</div>
+    <div class="map-card land-in" style="--d:.5s">
+      <div class="map-head">
+        <span class="map-title">Pick a city</span>
+        <span class="map-legend"><i></i><em>fast</em><em>slow to permit</em></span>
+      </div>
+      <div class="map-wrap" id="mapWrap">
+        <svg id="ocMap" role="img" aria-label="Map of Orange County cities"></svg>
+        <div class="map-tip" id="mapTip"></div>
+      </div>
+    </div>
   </div>
 
   <div class="skyline" aria-hidden="true" id="skyline"></div>
@@ -96,7 +102,7 @@
     <!-- inputs -->
     <aside class="panel inputs st-in" style="--d:.25s">
       <div class="city-picker" id="cityPicker">
-        <div class="cp-label">Where are you building?</div>
+        <div class="cp-label">City</div>
         <button class="cp-btn" id="cpBtn" aria-haspopup="listbox">
           <span class="cp-pin"><svg viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg></span>
           <span class="cp-text"><b id="cpCity">Santa Ana</b><small id="cpMeta">16.9 mo to permit · 23 projects</small></span>
@@ -108,8 +114,8 @@
         </div>
         <select id="city" class="hidden" aria-hidden="true" tabindex="-1"></select>
       </div>
-      <div class="city-hint" id="cityHint"></div>
-      <div id="syntheticBanner" class="banner hidden">Organizers' <b>SYNTHETIC</b> example. Must return $95k.</div>
+      <div class="city-hint hidden" id="cityHint"></div>
+      <div id="syntheticBanner" class="banner hidden"><b>SYNTHETIC</b> organizers' example</div>
 
       <div class="field"><span>Homes</span>
         <div id="homeRows"></div>

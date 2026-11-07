@@ -26,8 +26,8 @@ const REG = new Map(); // source registry: key -> {label, value, tag, source, ur
 /* ---------------- boot ---------------- */
 async function boot() {
   const get = (f) => fetch(`/data/${f}`).then((r) => r.json());
-  const [income, timelines, programs, pmms, deal] = await Promise.all([get('income_limits.json'), get('city_timelines.json'), get('programs.json'), get('pmms.json'), get('synthetic_deal.json')]);
-  D = { income, timelines, programs, pmms, deal };
+  const [income, timelines, programs, pmms, deal, map] = await Promise.all([get('income_limits.json'), get('city_timelines.json'), get('programs.json'), get('pmms.json'), get('synthetic_deal.json'), get('oc_map.json')]);
+  D = { income, timelines, programs, pmms, deal, map };
   S.rate = pmms.latest.rate30;
   try { const t = localStorage.getItem('gs-theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
   buildStatic();
@@ -36,6 +36,7 @@ async function boot() {
   render(true);
   drawSpark();
   buildSkyline();
+  buildMap();
   fetch('/api/health').then((r) => r.json()).then((h) => {
     const p = $('#claudePill');
     p.textContent = h.claude ? `Claude: ${h.model}` : 'Claude: template mode';
@@ -53,10 +54,6 @@ function buildStatic() {
   }).join('');
   $('#city').innerHTML = opts;
   $('#compareCity').innerHTML = opts;
-  $('#chipProjects').textContent = D.timelines.projects_joined.toLocaleString();
-  $('#chipRate').textContent = `${D.pmms.latest.rate30}%`;
-  const slow = D.timelines.cities.filter((c) => c.approval_to_permit.confidence === 'ok').sort((a, b) => b.approval_to_permit.median - a.approval_to_permit.median)[0];
-  if (slow) { $('#chipWait').textContent = `${slow.approval_to_permit.median} mo`; $('#chipWait').parentNode.lastChild.textContent = `wait to permit in ${slow.city}`; }
   buildPicker();
   const ag = $('#assumeGrid');
   const AS = [
@@ -202,7 +199,7 @@ function syncForm(structural) {
     $('#homeRows').innerHTML = `<div class="home-legend"><span>Homes</span><span>Income band</span><span>Bedrooms</span><span></span></div>` + S.homes.map((h, i) => `
       <div class="home-row" data-i="${i}">
         <input type="number" min="1" value="${h.count}" data-f="count" aria-label="Number of homes">
-        <select data-f="band" aria-label="Income band" title="${BAND_LABEL[h.band]}">${Object.entries(BAND_SHORT).map(([k, v]) => `<option value="${k}" ${k === h.band ? 'selected' : ''}>${v} · ${BAND_LABEL[k].split(', ')[1].split(' ')[0]}</option>`).join('')}</select>
+        <select data-f="band" aria-label="Income band" title="${BAND_LABEL[h.band]}">${Object.entries(BAND_SHORT).map(([k, v]) => `<option value="${k}" ${k === h.band ? 'selected' : ''}>${v}</option>`).join('')}</select>
         <input type="number" min="0" max="7" value="${h.bedrooms}" data-f="bedrooms" aria-label="Bedrooms">
         <button class="x" title="Remove" ${S.homes.length < 2 ? 'disabled' : ''}>✕</button>
       </div>`).join('');
@@ -337,10 +334,10 @@ function renderWaterfall() {
   existing.forEach((col, k) => { if (!keep.has(k)) col.remove(); });
 
   const fp = h.fp;
-  $('#billSub').textContent = S.synthetic ? 'The organizers\' synthetic one-home bill. Every number is made up.' : `One ${R.homes[S.tab].bedrooms}-bedroom home for a family at ${BAND_SHORT[R.homes[S.tab].band]} in ${titleCase(S.juris)}.`;
+  $('#billSub').textContent = S.synthetic ? 'Synthetic example' : `${R.homes[S.tab].bedrooms} BR · ${BAND_SHORT[R.homes[S.tab].band]} · ${cityName(S.juris)}`;
   $('#familyExplain').innerHTML = S.overrides
     ? `<b>Family price fixed at ${fmt(h.family)}</b> <span class="tag SYNTHETIC">SYNTHETIC</span>. Switch to <b>New project</b> to compute it from state law.`
-    : `<b>Why the family pays <span class="src" data-k="family">${fmt(h.family)}</span>.</b> <span class="src" data-k="statute">${fp.cite}</span> caps housing cost at <code>${fp.formula}</code> = <b>${fmt(fp.capMo)}/mo</b> for a <span class="src" data-k="hh">${fp.hh}-person</span> household. After <span class="src" data-k="assume_buyer">tax, insurance, HOA and utilities</span>, <b>${fmt(fp.piMo)}/mo</b> carries a ${fmtK(fp.loan)} loan at <span class="src" data-k="rate">${S.rate.toFixed(2)}%</span>, plus ${fmtK(fp.down)} down.<br><q>${fp.quote}</q>`;
+    : `Family pays <b class="src" data-k="family">${fmt(h.family)}</b> · <code class="src" data-k="statute">${fp.formula} = ${fmt(fp.capMo)}/mo</code> · ${fmtK(fp.loan)} loan at <span class="src" data-k="rate">${S.rate.toFixed(2)}%</span>`;
 }
 
 const shortName = (n) => n.replace('CalHFA ', '').replace('FHLBank San Francisco ', 'FHLB ').replace('Santa Ana ', 'SA ').replace(' (synthetic)', '').replace('HCD CalHome (via Homeownership Super NOFA)', 'CalHome').replace('Orange County Housing Finance Trust', 'OCHFT');
@@ -362,7 +359,7 @@ function renderPrograms() {
     const counted = s.value > 0 ? `<small>counted ${fmt(s.value)}</small>` : s.status === 'unknown' ? '<small>listed, never counted</small>' : !s.eligible ? '<small>not counted</small>' : s.status === 'funds_unconfirmed' && !S.countUnconfirmed ? '<small>shown dashed, not counted</small>' : '<small>not needed</small>';
     return `<div class="prog ${s.value > 0 ? 'counted' : ''} ${!s.eligible || !s.on ? 'off' : ''}">
       <div><div class="prog-name">${s.name} ${status} ${inel} ${draft}<a href="${s.source_url}" target="_blank" rel="noopener">source</a></div>
-      <div class="prog-terms">${s.terms}. ${s.status_note}</div></div>
+      <div class="prog-terms" title="${(s.terms + '. ' + s.status_note).replace(/"/g, '&quot;')}">${s.terms}</div></div>
       <div style="display:flex;align-items:center;gap:14px"><div class="prog-amt src" data-k="prog_${s.id}">${amt}${counted}</div>
       <label class="switch" title="Include in stack"><input type="checkbox" data-prog="${s.id}" ${s.on ? 'checked' : ''} ${!s.eligible || s.potential == null ? 'disabled' : ''}><span></span></label></div>
     </div>`;
@@ -449,7 +446,7 @@ function renderBoard() {
   });
   board.style.display = 'flex'; board.style.flexDirection = 'column';
   const none = D.timelines.cities.filter((c) => c.approval_to_permit.median == null).map((c) => c.city);
-  $('#boardNote').innerHTML = `Faded bars: 5 to 9 projects, low confidence. No usable data (under 5 projects): ${none.join(', ')}. A 0-month median usually means the city records approval and permit on the same day. Source: <a class="src-link" data-k="apr" href="#">HCD APR Table A2</a>, checked ${D.timelines.checked}.`;
+  $('#boardNote').innerHTML = `Faded = under 10 projects. <a class="src-link" data-k="limits" href="#">${none.length} cities without data</a> · <a class="src-link" data-k="apr" href="#">HCD APR Table A2</a>`;
 }
 
 /* ---------------- rate ---------------- */
@@ -508,9 +505,9 @@ function renderDonor() {
   const homes = left > 0 ? g / left : 0;
   const projShare = R.totals.fundraising > 0 ? g / R.totals.fundraising : 0;
   $('#donorCards').innerHTML = `
-    <div class="dcard hot"><b>${left > 0 ? Math.min(999, Math.round(share * 100)) + '%' : 'n/a'}</b><p>of one home's fundraising gap (${fmtK(left)})${homes >= 1 ? `, enough to close <b>${Math.floor(homes)}</b> home${Math.floor(homes) > 1 ? 's' : ''}` : ''}</p><div class="meter"><i style="width:${Math.min(100, share * 100)}%"></i></div></div>
-    <div class="dcard"><b>${months.toFixed(1)} months</b><p>of waiting costs on one home: interest, tax and insurance while it waits for a permit (${fmtK(R.carry.total)}/mo, <span class="tag ASSUMPTION">ASSUMPTION</span>)</p><div class="meter"><i style="width:${Math.min(100, (months / Math.max(1, R.wait.months)) * 100)}%"></i></div></div>
-    <div class="dcard"><b>${Math.round(projShare * 100)}%</b><p>of the whole project's ${fmtK(R.totals.fundraising)} still to raise across ${R.totals.count} homes</p><div class="meter"><i style="width:${Math.min(100, projShare * 100)}%"></i></div></div>`;
+    <div class="dcard hot"><b>${left > 0 ? Math.min(999, Math.round(share * 100)) + '%' : 'n/a'}</b><p>of one home's gap${homes >= 1 ? ` · closes <b>${Math.floor(homes)}</b> home${Math.floor(homes) > 1 ? 's' : ''}` : ''}</p><div class="meter"><i style="width:${Math.min(100, share * 100)}%"></i></div></div>
+    <div class="dcard"><b>${months.toFixed(1)} months</b><p>of waiting on a permit <span class="tag ASSUMPTION">ASSUMPTION</span></p><div class="meter"><i style="width:${Math.min(100, (months / Math.max(1, R.wait.months)) * 100)}%"></i></div></div>
+    <div class="dcard"><b>${Math.round(projShare * 100)}%</b><p>of the whole project</p><div class="meter"><i style="width:${Math.min(100, projShare * 100)}%"></i></div></div>`;
   void h;
 }
 
@@ -677,7 +674,9 @@ function bindStudio() {
   window.addEventListener('resize', moveInk);
 }
 
-function openStudio(preset) {
+function openStudio(preset, juris) {
+  if (juris) S.juris = juris;
+  hideTip();
   document.body.classList.add('leaving');
   setTimeout(() => {
     document.body.classList.remove('at-landing', 'leaving');
@@ -691,7 +690,7 @@ function openStudio(preset) {
     R = null;
     if (preset) applyPreset(preset); else render(true);
     switchTab('bill', true);
-    if (!preset) setTimeout(() => openPicker(true), 950);
+    if (!preset && !juris) setTimeout(() => $('#cityPicker').classList.add('invite'), 900);
   }, 520);
 }
 
@@ -701,8 +700,87 @@ function goHome() {
   document.body.classList.add('at-landing');
   $('#studio').setAttribute('aria-hidden', 'true');
   buildSkyline();
+  buildMap();
   window.scrollTo(0, 0);
 }
+
+/* ---------- landing map ---------- */
+const HEAT = [[243, 220, 198], [233, 164, 111], [212, 98, 47], [143, 52, 18]];
+function heat(t) {
+  t = Math.max(0, Math.min(1, t));
+  const s = t * (HEAT.length - 1), i = Math.min(HEAT.length - 2, Math.floor(s)), f = s - i;
+  const c = HEAT[i].map((v, k) => Math.round(v + (HEAT[i + 1][k] - v) * f));
+  return `rgb(${c.join(',')})`;
+}
+
+function buildMap() {
+  const svg = $('#ocMap');
+  if (!svg || !D.map) return;
+  const [x0, y0, w, h] = D.map.viewBox;
+  svg.setAttribute('viewBox', `${x0 - 10} ${y0 - 10} ${w + 20} ${h + 20}`);
+  svg.classList.remove('ready', 'hovering');
+  const known = D.timelines.cities.map((c) => c.approval_to_permit.median).filter((v) => v != null);
+  const max = Math.max(...known, 1);
+  const cx = w / 2, cy = h / 2;
+  const paths = D.map.cities.map((c) => {
+    const row = cityRow(c.juris);
+    const m = row?.approval_to_permit.median;
+    const dist = Math.hypot(c.cx - cx, c.cy - cy) / Math.hypot(cx, cy);
+    const fill = m != null ? heat(m / max) : '';
+    return `<path class="city ${m == null ? 'nodata' : ''}" data-j="${c.juris}" d="${c.d}" style="--d:${(0.4 + dist * 0.9).toFixed(2)}s;${fill ? `fill:${fill}` : ''}"></path>`;
+  }).join('');
+  svg.innerHTML = `<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#e9dccd"/><line x1="0" y1="0" x2="0" y2="8" stroke="#cbb8a6" stroke-width="3"/></pattern></defs>
+    ${paths}<g class="pin" id="mapPin"><circle class="ring" r="12" cx="0" cy="0"/><circle r="7" fill="#fff"/><circle r="4" fill="#d4622f"/></g>`;
+  clearTimeout(svg._t);
+  svg._t = setTimeout(() => svg.classList.add('ready'), 3200);
+  if (!svg._bound) {
+    svg._bound = true;
+    svg.addEventListener('mousemove', (e) => {
+      const p = e.target.closest('.city');
+      if (!p) { hideTip(); return; }
+      showTip(p, e);
+    });
+    svg.addEventListener('mouseleave', hideTip);
+    svg.addEventListener('click', (e) => { const p = e.target.closest('.city'); if (p) { pulseCity(p); setTimeout(() => openStudio(null, p.dataset.j), 260); } });
+  }
+}
+
+function showTip(p, e) {
+  const svg = $('#ocMap'), tip = $('#mapTip'), wrap = $('#mapWrap');
+  const j = p.dataset.j;
+  if (svg._hot !== p) {
+    $$('.city.hot', svg).forEach((n) => n.classList.remove('hot'));
+    p.classList.add('hot');
+    p.parentNode.insertBefore(p, $('#mapPin'));
+    svg._hot = p;
+    const row = cityRow(j), m = row?.approval_to_permit;
+    const c = D.map.cities.find((x) => x.juris === j);
+    const pin = $('#mapPin');
+    pin.setAttribute('transform', `translate(${c.cx},${c.cy})`);
+    pin.classList.add('on');
+    const carry = R ? R.carry.total : 0;
+    tip.innerHTML = `<b>${cityName(j)}</b>${m && m.median != null
+      ? `<div class="mt-row"><span>Wait to permit</span><strong>${m.median} mo</strong></div><div class="mt-row"><span>Cost per home</span><strong>${fmtK(m.median * carry)}</strong></div>`
+      : '<div class="mt-row"><span>Not enough data</span></div>'}<div class="mt-go">Click to start →</div>`;
+  }
+  svg.classList.add('hovering');
+  const r = wrap.getBoundingClientRect();
+  tip.style.left = `${e.clientX - r.left}px`;
+  tip.style.top = `${e.clientY - r.top}px`;
+  tip.classList.add('show');
+}
+
+function hideTip() {
+  const svg = $('#ocMap');
+  if (!svg) return;
+  svg.classList.remove('hovering');
+  $$('.city.hot', svg).forEach((n) => n.classList.remove('hot'));
+  svg._hot = null;
+  $('#mapPin')?.classList.remove('on');
+  $('#mapTip')?.classList.remove('show');
+}
+
+function pulseCity(p) { p.animate([{ transform: 'scale(1.06) translateY(-3px)' }, { transform: 'scale(1.18) translateY(-6px)' }, { transform: 'scale(1.06) translateY(-3px)' }], { duration: 260, easing: 'ease-out' }); }
 
 function switchTab(name, silent = false) {
   $$('#tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
