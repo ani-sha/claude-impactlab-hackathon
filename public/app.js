@@ -8,7 +8,10 @@ const fmtK = (v) => money(v, { compact: true });
 const titleCase = (s) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
 const BAND_LABEL = { extremely_low: '30% AMI, extremely low', very_low: '50% AMI, very low', low: '80% AMI, lower income', moderate: '120% AMI, moderate' };
-const BAND_SHORT = { extremely_low: '30% AMI', very_low: '50% AMI', low: '80% AMI', moderate: '120% AMI' };
+const BAND_NAME = { extremely_low: 'Extremely low income', very_low: 'Very low income', low: 'Low income', moderate: 'Moderate income' };
+const capFor = (band, bedrooms) => { const hh = Math.min(8, Math.max(1, Math.round(bedrooms) + 1)); return { hh, cap: D.income.tables.state.by_household_size[band][hh - 1] }; };
+const bandOption = (band, bedrooms) => { const { hh, cap } = capFor(band, bedrooms); return { low: 'Low', very_low: 'Very low', moderate: 'Moderate', extremely_low: 'Extremely low' }[band] + ' · up to ' + fmt(cap); };
+const BAND_SHORT = { extremely_low: 'Extremely low income', very_low: 'Very low income', low: 'Low income', moderate: 'Moderate income' };
 
 const DEFAULT_STATE = () => ({
   juris: 'SANTA ANA', compare: 'BUENA PARK',
@@ -37,7 +40,8 @@ async function boot() {
   reveal();
   fetch('/api/health').then((r) => r.json()).then((h) => {
     const p = $('#claudePill');
-    p.textContent = h.claude ? `Claude: ${h.model}` : 'Claude: template mode';
+    p.textContent = h.claude ? `Claude: ${h.model}` : '';
+    p.style.display = h.claude ? '' : 'none';
     p.classList.toggle('on', h.claude);
     p.title = h.claude ? 'Memo and program reader call Claude' : 'Set ANTHROPIC_API_KEY in .env to turn on Claude';
   }).catch(() => { $('#claudePill').textContent = 'Claude: offline'; });
@@ -52,7 +56,6 @@ function buildStatic() {
   }).join('');
   $('#city').innerHTML = opts;
   $('#compareCity').innerHTML = opts;
-  $('#heroProjects').textContent = D.timelines.projects_joined.toLocaleString();
   const ag = $('#assumeGrid');
   const AS = [
     ['taxRate', 'Buyer property tax rate', 0.001], ['insuranceMo', 'Buyer insurance / mo', 10], ['hoaMo', 'HOA / mo', 10], ['utilitiesMo', 'Utilities / mo', 10],
@@ -63,6 +66,22 @@ function buildStatic() {
 
 /* ---------------- events ---------------- */
 function bind() {
+  const showView = (name) => {
+    const b = $(`#viewNav [data-view="${name}"]`); if (!b) return;
+    $$('#viewNav [data-view]').forEach((x) => x.classList.toggle('active', x === b));
+    $$('.view').forEach((v) => v.classList.toggle('active', v.dataset.view === name));
+    $$('.view.active .reveal').forEach((n) => n.classList.add('in'));
+  };
+  if (location.hash.length > 1) { showView(location.hash.slice(1)); setTimeout(() => window.scrollTo(0, 0), 0); }
+  window.addEventListener('hashchange', () => { showView(location.hash.slice(1) || 'overview'); window.scrollTo(0, 0); });
+  $('#viewNav').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-view]'); if (!b) return;
+    history.replaceState(null, '', b.dataset.view === 'overview' ? location.pathname : '#' + b.dataset.view);
+    $$('#viewNav [data-view]').forEach((x) => x.classList.toggle('active', x === b));
+    $$('.view').forEach((v) => v.classList.toggle('active', v.dataset.view === b.dataset.view));
+    $$('.view.active .reveal').forEach((n) => n.classList.add('in'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
   $('#city').addEventListener('change', (e) => { S.juris = e.target.value; render(); });
   $('#compareCity').addEventListener('change', (e) => { S.compare = e.target.value; render(); });
   const num = (id, fn) => $(id).addEventListener('input', (e) => { fn(Number(e.target.value) || 0); render(); });
@@ -190,14 +209,16 @@ function syncForm(structural) {
   $('#syntheticBanner').classList.toggle('hidden', !S.synthetic);
   $$('[data-preset]').forEach((b) => b.classList.toggle('active', (b.dataset.preset === 'synthetic') === S.synthetic));
   if (structural || !$('#homeRows').children.length) {
-    $('#homeRows').innerHTML = `<div class="home-legend"><span>Homes</span><span>Income band</span><span>Bedrooms</span><span></span></div>` + S.homes.map((h, i) => `
+    $('#homeRows').innerHTML = `<div class="home-legend"><span>Homes</span><span>Buyer income</span><span>Beds</span><span></span></div>` + S.homes.map((h, i) => `
       <div class="home-row" data-i="${i}">
         <input type="number" min="1" value="${h.count}" data-f="count" aria-label="Number of homes">
-        <select data-f="band" aria-label="Income band" title="${BAND_LABEL[h.band]}">${Object.entries(BAND_SHORT).map(([k, v]) => `<option value="${k}" ${k === h.band ? 'selected' : ''}>${v} · ${BAND_LABEL[k].split(', ')[1].split(' ')[0]}</option>`).join('')}</select>
+        <select data-f="band" aria-label="Who is buying">${['low', 'very_low', 'moderate', 'extremely_low'].map((k) => `<option value="${k}" ${k === h.band ? 'selected' : ''}>${bandOption(k, h.bedrooms)}</option>`).join('')}</select>
         <input type="number" min="0" max="7" value="${h.bedrooms}" data-f="bedrooms" aria-label="Bedrooms">
         <button class="x" title="Remove" ${S.homes.length < 2 ? 'disabled' : ''}>✕</button>
       </div>`).join('');
   }
+  $$('.home-row').forEach((row) => { const h = S.homes[Number(row.dataset.i)]; if (!h) return; $$('option', $('select', row)).forEach((o) => { o.textContent = bandOption(o.value, h.bedrooms); }); });
+  $('#incomeHint').innerHTML = '"Up to" = the most a household can earn and qualify, for the household size the home is sized for. Orange County median income: <b>' + fmt(D.income.tables.state.area_median_income_4p) + '</b> for a family of 4 (HCD, revised ' + D.income.tables.state.revision_date + ').';
   const w = R.wait;
   $('#cityHint').innerHTML = w.label === 'SOURCED'
     ? `Median <b>${w.months} months</b> approval to permit, from <b>${w.n}</b> state-reported projects${w.confidence === 'low' ? ' <span class="tag ASSUMPTION">LOW CONFIDENCE</span>' : ''}`
@@ -241,19 +262,11 @@ function renderHero() {
   tween($('#heroSubs'), R.per.subsidies, fmtK);
   tween($('#heroTotal'), R.totals.fundraising);
   $('#heroSub').innerHTML = `for <b>${n} home${n > 1 ? 's' : ''}</b> in <b>${titleCase(S.juris)}</b> at <b class="src" data-k="rate">${S.rate.toFixed(2)}%</b>`;
-  $('#heroRate').textContent = `${S.rate.toFixed(2)}%`;
-  tween($('#eqFam'), R.per.family, fmtK);
-  tween($('#eqSub'), R.per.subsidies, fmtK);
-  tween($('#eqRent'), R.per.rent, fmtK);
-  tween($('#eqRaise'), R.per.fundraising, fmtK);
-  tween($('#eqCost'), R.per.cost, fmtK);
-  const bal = R.per.family + R.per.subsidies + R.per.rent + R.per.fundraising - R.per.cost;
-  $('#eqBal').textContent = bal > 1 ? `+${fmtK(bal)} surplus` : '$0';
 }
 
 function renderWaterfall() {
   const tabs = $('#homeTabs');
-  tabs.innerHTML = R.homes.length > 1 ? R.homes.map((h, i) => `<button data-i="${i}" class="${i === S.tab ? 'active' : ''}">${h.count} x ${BAND_SHORT[h.band]}, ${h.bedrooms}BR</button>`).join('') : '';
+  tabs.innerHTML = R.homes.length > 1 ? R.homes.map((h, i) => `<button data-i="${i}" class="${i === S.tab ? 'active' : ''}">${h.count} homes · ${BAND_SHORT[h.band]} · ${h.bedrooms} bed</button>`).join('') : '';
   const h = R.homes[S.tab].result;
   const max = Math.max(h.cost, h.family) * 1.08;
   const pct = (v) => (v / max) * 100;
@@ -326,10 +339,10 @@ function renderWaterfall() {
   existing.forEach((col, k) => { if (!keep.has(k)) col.remove(); });
 
   const fp = h.fp;
-  $('#billSub').textContent = S.synthetic ? 'The organizers\' synthetic one-home bill. Every number is made up.' : `One ${R.homes[S.tab].bedrooms}-bedroom home for a family at ${BAND_SHORT[R.homes[S.tab].band]} in ${titleCase(S.juris)}.`;
+  $('#billSub').textContent = S.synthetic ? 'The organizers\' synthetic one-home bill. Every number is made up.' : `One ${R.homes[S.tab].bedrooms}-bedroom home for a ${BAND_SHORT[R.homes[S.tab].band].toLowerCase()} family in ${titleCase(S.juris)}.`;
   $('#familyExplain').innerHTML = S.overrides
     ? `<b>Family price fixed at ${fmt(h.family)}</b> <span class="tag SYNTHETIC">SYNTHETIC</span>. Switch to <b>New project</b> to compute it from state law.`
-    : `<b>Why the family pays <span class="src" data-k="family">${fmt(h.family)}</span>.</b> <span class="src" data-k="statute">${fp.cite}</span> caps housing cost at <code>${fp.formula}</code> = <b>${fmt(fp.capMo)}/mo</b> for a <span class="src" data-k="hh">${fp.hh}-person</span> household. After <span class="src" data-k="assume_buyer">tax, insurance, HOA and utilities</span>, <b>${fmt(fp.piMo)}/mo</b> carries a ${fmtK(fp.loan)} loan at <span class="src" data-k="rate">${S.rate.toFixed(2)}%</span>, plus ${fmtK(fp.down)} down.<br><q>${fp.quote}</q>`;
+    : `<b>Why the family pays <span class="src" data-k="family">${fmt(h.family)}</span>:</b> California law caps their housing cost at <span class="src" data-k="statute">${fmt(fp.capMo)} a month</span>, which at today's <span class="src" data-k="rate">${S.rate.toFixed(2)}%</span> rate buys this much home.`;
 }
 
 const shortName = (n) => n.replace('CalHFA ', '').replace('FHLBank San Francisco ', 'FHLB ').replace('Santa Ana ', 'SA ').replace(' (synthetic)', '').replace('HCD CalHome (via Homeownership Super NOFA)', 'CalHome').replace('Orange County Housing Finance Trust', 'OCHFT');
@@ -376,9 +389,9 @@ function renderTime() {
     <div class="tl-seg build" style="flex-grow:${Math.max(build ?? 0, 0.6)}"><span>Permit to completion</span><b>${build != null ? build + ' mo' : 'unknown'}</b></div>`;
   const tl = $('#timeline');
   if (!$('.tl-scale', tl.parentNode)) tl.insertAdjacentHTML('afterend', '<div class="tl-scale"></div>');
-  $('.tl-scale', tl.parentNode).innerHTML = `<span>Approved</span><span>${c && c.approval_to_permit.p25 != null ? `middle half of projects: ${c.approval_to_permit.p25} to ${c.approval_to_permit.p75} mo to permit` : ''}</span><span>Done, about ${Math.round(tot)} mo</span>`;
+  $('.tl-scale', tl.parentNode).innerHTML = `<span>Approved</span><span></span><span>Done, about ${Math.round(tot)} mo</span>`;
   const k = R.carry;
-  $('#carry').innerHTML = `
+  void `
     <div>Land loan interest<b>${fmt(k.interest)}</b></div>
     <div>Property tax<b>${fmt(k.tax)}</b></div>
     <div>Insurance + mgmt<b>${fmt(k.insurance + k.mgmt)}</b></div>
@@ -399,18 +412,13 @@ function renderTime() {
   const saveMonths = ocMedian != null ? Math.max(0, R.wait.months - ocMedian) : 0;
   const save = saveMonths * k.total;
   const projectSave = save * R.totals.count;
-  const wish = D.programs.programs.find((p) => p.id === 'fhlb_wish');
   let msg = `Every month <b>${titleCase(S.juris)}</b> takes from approval to permit costs <b>${fmt(k.total)}</b> per home.`;
   if (ocMedian != null && saveMonths > 0) {
-    msg += ` Bringing it down to the Orange County median of ${ocMedian} months would save <b>${fmtK(save)}</b> per home, <b>${fmtK(projectSave)}</b> on this project${wish && save > wish.amount.value ? `, more than a full WISH grant (${fmtK(wish.amount.value)}) per family` : ''}.`;
+    msg += ` Bringing it down to the Orange County median of ${ocMedian} months would save <b>${fmtK(save)}</b> per home, <b>${fmtK(projectSave)}</b> on this project.`;
   } else if (ocMedian != null) {
     msg += ` ${titleCase(S.juris)} is already at or under the Orange County median of ${ocMedian} months.`;
   }
-  if (Math.abs(timeDiff) > 1) {
-    msg += ` In ${theirs.name} the wait alone would cost <b>${fmtK(Math.abs(timeDiff))}</b> ${timeDiff > 0 ? 'more' : 'less'} per home.`;
-    const progDiff = Math.abs(diff - timeDiff);
-    if (progDiff > 1) msg += ` Counting local programs too (some only exist in one city), fundraising per home would be <b>${fmtK(Math.abs(diff))}</b> ${diff > 0 ? 'higher' : 'lower'}.`;
-  }
+  void diff;
   $('#insight').innerHTML = msg;
 }
 
@@ -438,7 +446,7 @@ function renderBoard() {
   });
   board.style.display = 'flex'; board.style.flexDirection = 'column';
   const none = D.timelines.cities.filter((c) => c.approval_to_permit.median == null).map((c) => c.city);
-  $('#boardNote').innerHTML = `Faded bars: 5 to 9 projects, low confidence. No usable data (under 5 projects): ${none.join(', ')}. A 0-month median usually means the city records approval and permit on the same day. Source: <a class="src-link" data-k="apr" href="#">HCD APR Table A2</a>, checked ${D.timelines.checked}.`;
+  $('#boardNote').innerHTML = `Faded = fewer than 10 past projects. Not enough data: ${none.join(', ')}. Source: <a class="src-link" data-k="apr" href="#">state housing reports (HCD APR)</a>.`;
 }
 
 /* ---------------- rate ---------------- */
@@ -498,8 +506,7 @@ function renderDonor() {
   const projShare = R.totals.fundraising > 0 ? g / R.totals.fundraising : 0;
   $('#donorCards').innerHTML = `
     <div class="dcard hot"><b>${left > 0 ? Math.min(999, Math.round(share * 100)) + '%' : 'n/a'}</b><p>of one home's fundraising gap (${fmtK(left)})${homes >= 1 ? `, enough to close <b>${Math.floor(homes)}</b> home${Math.floor(homes) > 1 ? 's' : ''}` : ''}</p><div class="meter"><i style="width:${Math.min(100, share * 100)}%"></i></div></div>
-    <div class="dcard"><b>${months.toFixed(1)} months</b><p>of waiting costs on one home: interest, tax and insurance while it waits for a permit (${fmtK(R.carry.total)}/mo, <span class="tag ASSUMPTION">ASSUMPTION</span>)</p><div class="meter"><i style="width:${Math.min(100, (months / Math.max(1, R.wait.months)) * 100)}%"></i></div></div>
-    <div class="dcard"><b>${Math.round(projShare * 100)}%</b><p>of the whole project's ${fmtK(R.totals.fundraising)} still to raise across ${R.totals.count} homes</p><div class="meter"><i style="width:${Math.min(100, projShare * 100)}%"></i></div></div>`;
+    <div class="dcard"><b>${months.toFixed(1)} months</b><p>of waiting costs on one home: interest, tax and insurance while it waits for a permit (${fmtK(R.carry.total)}/mo, <span class="tag ASSUMPTION">ASSUMPTION</span>)</p><div class="meter"><i style="width:${Math.min(100, (months / Math.max(1, R.wait.months)) * 100)}%"></i></div></div>`;
   void h;
 }
 

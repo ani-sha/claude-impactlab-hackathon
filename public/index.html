@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,14 +19,13 @@
     <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="18" width="7" height="11" rx="2"/><rect x="12.5" y="11" width="7" height="18" rx="2"/><rect x="22" y="4" width="7" height="25" rx="2" class="hot"/></svg>
     <div>
       <div class="brand-name">Gap Stack</div>
-      <div class="brand-sub">Fund it, with Clear it's clock built in</div>
+      <div class="brand-sub">Affordable home funding gap calculator</div>
     </div>
   </div>
-  <nav class="topnav">
-    <a href="#bill">The bill</a><a href="#time">Time</a><a href="#rate">Rates</a><a href="#donor">Donors</a><a href="#memo">Memo</a>
+  <nav class="topnav" id="viewNav">
+    <button data-view="overview" class="active">Your gap</button><button data-view="help">Who can pay</button><button data-view="time">Permit delays</button><button data-view="rate">Mortgage rates</button><button data-view="donor">For donors</button><button data-view="memo">Funder memo</button>
   </nav>
   <div class="top-actions">
-    <span class="pill warn" title="Prototype only">Prototype, not financial or legal advice</span>
     <span class="pill" id="claudePill">Claude: checking</span>
     <button class="btn ghost" id="openSources">Sources <span class="count" id="srcCount">0</span></button>
     <button class="btn ghost icon" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">◐</button>
@@ -34,39 +33,25 @@
 </header>
 
 <main>
+<div class="view active" data-view="overview">
   <!-- HERO -->
   <section class="hero">
     <div class="hero-copy reveal">
-      <div class="kicker">The $0 equation, Orange County</div>
-      <h1>Every home has to hit <span class="zero">$0</span>.</h1>
-      <p class="lede">Enter a project. See what a family can legally pay, how much <em>waiting on the city</em> adds to each home, and who can pay for the rest. Every number shows its source or says <span class="tag ASSUMPTION">ASSUMPTION</span>.</p>
-      <div class="hero-meta">
-        <span><b class="src" data-k="rate" id="heroRate">7.18%</b> 30-yr rate</span>
-        <span><b class="src" data-k="ami">$138,600</b> OC median income</span>
-        <span><b class="src" data-k="apr" id="heroProjects">21,477</b> state-reported projects</span>
-      </div>
+      <div class="kicker">Affordable homeownership · Orange County</div>
+      <h1>Affordable Home <span class="zero">Funding Gap</span> Calculator</h1>
+      <p class="lede">Building homes to sell to working families? Enter your project and see, per home, what it costs to build, what a family can legally be charged, how much permit delays add, and which programs can cover the rest. Every number comes from public data or is marked as an estimate.</p>
     </div>
     <div class="hero-card reveal">
-      <div class="hc-label">Left to fundraise, per home</div>
+      <div class="hc-label">Funding gap per home</div>
       <div class="hc-big src" data-k="fundraising" id="heroLeft">$0</div>
       <div class="hc-sub" id="heroSub">for <b>8 homes</b> in <b>Santa Ana</b></div>
       <div class="hc-row">
-        <div><span>Gap per home</span><b class="src" data-k="gap" id="heroGap">$0</b></div>
-        <div class="hot"><span>From time to permit</span><b class="src" data-k="time" id="heroTime">$0</b></div>
-        <div class="good"><span>Programs fill</span><b class="src" data-k="subsidies" id="heroSubs">$0</b></div>
+        <div><span>Cost minus family price</span><b class="src" data-k="gap" id="heroGap">$0</b></div>
+        <div class="hot"><span>Of that, permit delays</span><b class="src" data-k="time" id="heroTime">$0</b></div>
+        <div class="good"><span>Programs cover</span><b class="src" data-k="subsidies" id="heroSubs">$0</b></div>
       </div>
-      <div class="hc-total">Project total to raise: <b id="heroTotal">$0</b></div>
+      <div class="hc-total">Whole project still to raise: <b id="heroTotal">$0</b></div>
     </div>
-  </section>
-
-  <!-- EQUATION -->
-  <section class="equation reveal" aria-label="The equation">
-    <div class="eq-tile fam"><span>Family pays</span><b id="eqFam">$0</b></div><i>+</i>
-    <div class="eq-tile sub"><span>Programs</span><b id="eqSub">$0</b></div><i>+</i>
-    <div class="eq-tile rent"><span>Rent while waiting</span><b id="eqRent">$0</b></div><i>+</i>
-    <div class="eq-tile raise"><span>Fundraising</span><b id="eqRaise">$0</b></div><i>&minus;</i>
-    <div class="eq-tile cost"><span>Cost to create</span><b id="eqCost">$0</b></div><i>=</i>
-    <div class="eq-tile zero-tile"><span>Balance</span><b id="eqBal">$0</b></div>
   </section>
 
   <!-- MAIN GRID -->
@@ -89,6 +74,7 @@
       <div class="field"><span>Homes and who they are for</span>
         <div id="homeRows"></div>
         <button class="btn small ghost" id="addRow">+ Add home type</button>
+        <small class="muted" id="incomeHint"></small>
       </div>
 
       <div class="field"><span>Cost per home <span class="tag ASSUMPTION">ASSUMPTION</span></span>
@@ -123,25 +109,51 @@
         <div class="family-explain" id="familyExplain"></div>
       </div>
 
+    </div>
+  </section>
+
+</div>
+
+<div class="view" data-view="help">
+  <section class="section first">
+    <div class="section-head reveal">
+      <div class="kicker">Closing the gap</div>
+      <h2>Who can help pay?</h2>
+      <p class="lede small">Only amounts read on a program's own page count. Programs decided by a lottery or a funding round stay out unless you switch them on.</p>
+    </div>
+    <div class="stack-col">
       <div class="panel reveal">
         <div class="panel-head">
           <div>
-            <h2>Who can fill it</h2>
-            <p class="muted">Only amounts read on a program's own page are counted. Unknown is never added.</p>
+            <h2>Programs</h2>
+            
           </div>
           <label class="switch"><input type="checkbox" id="countUnconf"><span></span>Count unconfirmed funds</label>
         </div>
         <div class="programs" id="programs"></div>
       </div>
+
+      <details class="panel reveal claude-add">
+        <summary><b>Know another program?</b> Paste its page and Claude drafts it for you to approve</summary>
+      <div>
+        <p class="muted">Paste the text of a program page. Claude drafts a row with quoted evidence. You approve it before it enters the stack.</p>
+        <input type="url" id="progUrl" placeholder="Program page URL (for the citation)">
+        <textarea id="progText" rows="7" placeholder="Paste the program page text here"></textarea>
+        <button class="btn" id="progBtn">Draft a program row</button>
+        <div id="progOut"></div>
+      </div>
+      </details>
     </div>
   </section>
+</div>
 
+<div class="view" data-view="time">
   <!-- TIME -->
-  <section class="section" id="time">
+  <section class="section first" id="time">
     <div class="section-head reveal">
-      <div class="kicker">Lane 2 inside Lane 3</div>
-      <h2>Time to permit is a line on the bill.</h2>
-      <p class="lede small">Every month between approval and building permit, the nonprofit pays interest, taxes and insurance on land nobody lives on yet. We measured each Orange County city from the state's own Annual Progress Report records.</p>
+      <div class="kicker">Waiting costs money</div>
+      <h2>How long does your city take to issue a permit?</h2>
+      <p class="lede small">While a project waits for its building permit, the nonprofit keeps paying interest, taxes and insurance on the land. Wait times come from the state's own records of past projects in each city.</p>
     </div>
     <div class="time-grid">
       <div class="panel reveal">
@@ -150,7 +162,6 @@
           <span class="conf" id="tlConf"></span>
         </div>
         <div class="timeline" id="timeline"></div>
-        <div class="carry" id="carry"></div>
         <div class="compare">
           <label>Same project in
             <select id="compareCity"></select>
@@ -162,8 +173,8 @@
       <div class="panel reveal">
         <div class="panel-head">
           <div>
-            <h3>Orange County, ranked by months from approval to permit</h3>
-            <p class="muted">Median for non-ADU projects. Bar label = time cost per home for your project. Click a city to use it.</p>
+            <h3>All Orange County cities</h3>
+            <p class="muted">Typical months from approval to building permit. Click a city to use it.</p>
           </div>
         </div>
         <div class="board" id="board"></div>
@@ -172,12 +183,15 @@
     </div>
   </section>
 
+</div>
+
+<div class="view" data-view="rate">
   <!-- RATE -->
-  <section class="section" id="rate">
+  <section class="section first" id="rate">
     <div class="section-head reveal">
-      <div class="kicker">Scenario M02</div>
+      <div class="kicker">If rates change</div>
       <h2>When the rate moves, the gap moves.</h2>
-      <p class="lede small">The family's price is capped by income, so a higher mortgage rate means a smaller loan, a lower price and a bigger gap. Drag the rate.</p>
+      <p class="lede small">A family's monthly payment is capped by law, so a higher rate means they can afford less and the gap grows. Drag the rate.</p>
     </div>
     <div class="panel rate-panel reveal">
       <div class="rate-left">
@@ -197,10 +211,13 @@
     </div>
   </section>
 
+</div>
+
+<div class="view" data-view="donor">
   <!-- DONOR -->
-  <section class="section" id="donor">
+  <section class="section first" id="donor">
     <div class="section-head reveal">
-      <div class="kicker">Scenario M03</div>
+      <div class="kicker">For donors</div>
       <h2>What does a gift actually pay for?</h2>
     </div>
     <div class="panel donor-panel reveal">
@@ -212,14 +229,17 @@
     </div>
   </section>
 
+</div>
+
+<div class="view" data-view="memo">
   <!-- MEMO -->
-  <section class="section" id="memo">
+  <section class="section first" id="memo">
     <div class="section-head reveal">
-      <div class="kicker">Claude writes, the engine counts</div>
+      <div class="kicker">Written by Claude</div>
       <h2>A one-page funder memo, from these exact numbers.</h2>
-      <p class="lede small">Claude never does the arithmetic. It gets the engine's output, with every tag and source, and writes it up for a board. A person reads it before it goes anywhere. Nothing is sent.</p>
+      <p class="lede small">Claude turns these numbers into a one-page memo for a board or funder. It never changes a number. A person reviews it; nothing is sent.</p>
     </div>
-    <div class="memo-grid">
+    <div class="memo-grid single">
       <div class="panel reveal">
         <button class="btn primary" id="memoBtn"><span class="spark-ico">✦</span> Write the funder memo</button>
         <div class="memo-out" id="memoOut"><p class="muted">The memo appears here.</p></div>
@@ -228,16 +248,10 @@
           <span class="muted tiny" id="memoBy"></span>
         </div>
       </div>
-      <div class="panel reveal">
-        <h3>Add a program with Claude</h3>
-        <p class="muted">Paste the text of a program page. Claude drafts a row with quoted evidence. You approve it before it enters the stack.</p>
-        <input type="url" id="progUrl" placeholder="Program page URL (for the citation)">
-        <textarea id="progText" rows="7" placeholder="Paste the program page text here"></textarea>
-        <button class="btn" id="progBtn">Draft a program row</button>
-        <div id="progOut"></div>
-      </div>
     </div>
   </section>
+
+</div>
 
   <footer class="foot">
     <div>
