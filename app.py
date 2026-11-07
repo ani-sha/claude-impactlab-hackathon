@@ -30,6 +30,11 @@ st.markdown("""<style>
 .card .v {font-size: 1.7rem; font-weight: 700}
 .card p {margin: 4px 0 0 0; font-size: .88rem; opacity: .8}
 .block-container {padding-top: 2.2rem}
+.eyebrow {letter-spacing: .12em; font-size: .78rem; color: #d0693b; font-weight: 600; margin: 0}
+.lede {font-size: 1.12rem; line-height: 1.55; max-width: 62rem; opacity: .9}
+.step {border-radius: 12px; padding: 12px 14px; height: 100%; background: rgba(208,105,59,.08); border: 1px solid rgba(208,105,59,.35)}
+.step .n {display: inline-block; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #d0693b; color: #fff; text-align: center; font-weight: 700; margin-right: 8px; line-height: 1.5rem}
+.step p {margin: 6px 0 0 0; font-size: .86rem; opacity: .8}
 [data-testid="stAppDeployButton"] {display: none}
 .tag {display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: 9px; margin-left: 4px;
       border: 1px solid rgba(128,128,128,.4)}
@@ -100,18 +105,29 @@ with st.sidebar:
         earned = st.number_input("Earned per home while waiting, e.g. rent", 0, 500_000, 0, 5_000)
 
 # ================================================================ header + the four questions
-st.caption("⚠️ Prototype. Not financial, legal or lending advice.")
-st.title("How short is each home?")
-st.markdown("For nonprofits building affordable for-sale homes in Orange County. Answer four questions; "
-            "every number shows where it comes from.")
-
+st.markdown('<p class="eyebrow">AFFORDABLE HOMEOWNERSHIP · ORANGE COUNTY</p>', unsafe_allow_html=True)
+st.title("Affordable Home Funding Gap Calculator")
+st.markdown('<p class="lede">Planning affordable homes to sell to working families? Enter your project and see, '
+            'per home, <b>what it costs to build</b>, <b>what a family can legally be charged</b>, '
+            '<b>how much permit delays in your city add</b>, and <b>which funding programs can cover the difference</b>. '
+            'Every number comes from public data or is marked as an estimate.</p>', unsafe_allow_html=True)
+s1, s2, s3, s4 = st.columns(4)
+for col, n, head, body in [
+        (s1, "1", "Cost to build", "Land, construction, fees, plus what months of waiting on permits cost"),
+        (s2, "2", "What the family can pay", "Capped by California law (30% of income) using the official 2026 income table and today's mortgage rate"),
+        (s3, "3", "The funding gap", "Cost minus what the family pays: the money the nonprofit still has to find"),
+        (s4, "4", "Who can fill it", "State and local programs, with only confirmed money counted, plus a funder memo drafted by Claude")]:
+    col.markdown(f'<div class="step"><span class="n">{n}</span><b>{head}</b><p>{body}</p></div>', unsafe_allow_html=True)
+st.write("")
+st.markdown("##### Your project")
 known_cities = sorted([c for c, r in cities.items() if r["label"] == "SOURCED"])
 q1, q2, q3, q4 = st.columns([1.2, 0.8, 0.8, 1.6])
 city = q1.selectbox("Which city?", known_cities, index=known_cities.index("Santa Ana"))
 homes = q2.number_input("How many homes?", 1, 50, 8)
 bedrooms = q3.selectbox("Bedrooms each?", [1, 2, 3, 4], index=2)
 band = q4.selectbox("Who is buying?", ["lower", "very_low", "moderate", "extremely_low"], format_func=WHO.get)
-st.caption("Costs and other assumptions: open the **›** panel on the left.")
+st.caption("Land, construction and other cost assumptions: click **»** at the top left to edit them. "
+           "⚠️ Prototype, not financial, legal or lending advice.")
 
 # ================================================================ engine (all math in engine/)
 aff_kw = dict(band=band, bedrooms=bedrooms, ami_by_size=AMI, down_payment_pct=down, property_tax_rate=ptax,
@@ -154,9 +170,9 @@ t_ans, t_help, t_city, t_rate, t_donor, t_memo, t_src = st.tabs(["🏠 Answer", 
 # ================================================================ the answer
 with t_ans:
     if need > 0:
-        st.markdown(f'<p class="big">Each home is {money(need)} short.</p>'
-                    f'<p class="sub">That is <b>{money(need * homes)}</b> to raise for {homes} homes in {city}, '
-                    f'after what the family can pay and confirmed help.</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="sub">Funding gap per home</p><p class="big">{money(need)}</p>'
+                    f'<p class="sub"><b>{money(need * homes)}</b> for all {homes} homes in {city}: the money still to raise '
+                    f'after the family pays what the law allows and confirmed programs chip in.</p>', unsafe_allow_html=True)
     else:
         st.markdown(f'<p class="big">Each home pencils. 🎉</p><p class="sub">Surplus of {money(stack["surplus"])} per home.</p>',
                     unsafe_allow_html=True)
