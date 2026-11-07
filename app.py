@@ -125,7 +125,22 @@ q1, q2, q3, q4 = st.columns([1.2, 0.8, 0.8, 1.6])
 city = q1.selectbox("Which city?", known_cities, index=known_cities.index("Santa Ana"))
 homes = q2.number_input("How many homes?", 1, 50, 8)
 bedrooms = q3.selectbox("Bedrooms each?", [1, 2, 3, 4], index=2)
-band = q4.selectbox("Who is buying?", ["lower", "very_low", "moderate", "extremely_low"], format_func=WHO.get)
+hh_size = str(bedrooms + 1)  # HSC 50052.5(h): family size appropriate to the unit
+LIMIT_KEY = {"lower": "low", "very_low": "very_low", "moderate": "moderate", "extremely_low": "extremely_low"}
+BAND_NAME = {"lower": "Low income", "very_low": "Very low income", "moderate": "Moderate income",
+             "extremely_low": "Extremely low income"}
+lim = il["by_household_size"]
+
+
+def who(b):
+    return f"{BAND_NAME[b]}: household earns up to ${lim[LIMIT_KEY[b]][hh_size]:,}/yr"
+
+
+band = q4.selectbox(f"Who is buying? (household of {hh_size})", ["lower", "very_low", "moderate", "extremely_low"],
+                    format_func=who)
+st.caption(f"Orange County area median income: **${lim['median'][hh_size]:,}/yr** for a household of {hh_size}"
+           + (f" (${lim['median']['4']:,} for 4). " if hh_size != "4" else ". ") + f"Income caps from HCD's 2026 State Income Limits, revised "
+           f"{il['revision_date']}. A {bedrooms}-bedroom home is priced for {hh_size} people, as state law sets.")
 st.caption("Land, construction and other cost assumptions: click **»** at the top left to edit them. "
            "⚠️ Prototype, not financial, legal or lending advice.")
 
