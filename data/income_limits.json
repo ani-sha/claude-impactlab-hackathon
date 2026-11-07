@@ -1,0 +1,19 @@
+{
+  "table": "HCD 2026 State Income Limits (Revised)",
+  "county": "Orange",
+  "revision_date": "2026-06-23",
+  "replaces": "2026 State Income Limits dated 2026-05-29",
+  "source_url": "https://www.hcd.ca.gov/sites/default/files/docs/grants-and-funding/income-limits-2026.pdf",
+  "source_page": "PDF page 11 (Orange County block; 4-person median $138,600 matches the 'Area Median Income: $138,600' heading)",
+  "checked": "2026-11-07",
+  "label": "SOURCED",
+  "note": "Typed from the PDF text. The Low Income limit exceeds the median in OC (HUD high-cost adjustment), which is why HSC 50052.5 prices from AREA MEDIAN INCOME, not from the income limit.",
+  "by_household_size": {
+    "acutely_low":   {"1": 14550, "2": 16650, "3": 18700, "4": 20800, "5": 22450, "6": 24150, "7": 25800, "8": 27450},
+    "extremely_low": {"1": 39100, "2": 44700, "3": 50300, "4": 55850, "5": 60350, "6": 64800, "7": 69300, "8": 73750},
+    "very_low":      {"1": 65150, "2": 74450, "3": 83750, "4": 93050, "5": 100500, "6": 107950, "7": 115400, "8": 122850},
+    "low":           {"1": 104200, "2": 119100, "3": 134000, "4": 148850, "5": 160800, "6": 172700, "7": 184600, "8": 196500},
+    "median":        {"1": 97000, "2": 110900, "3": 124750, "4": 138600, "5": 149700, "6": 160800, "7": 171850, "8": 182950},
+    "moderate":      {"1": 116400, "2": 133050, "3": 149650, "4": 166300, "5": 179600, "6": 192900, "7": 206200, "8": 219500}
+  }
+}

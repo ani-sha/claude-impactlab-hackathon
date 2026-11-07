@@ -1,0 +1,79 @@
+{
+ "about": "Financial assistance programs named in APR Table A2 for Orange County projects (non-ADU), count of distinct projects. Self-reported by cities; names are as entered.",
+ "source": "HCD Housing Element Annual Progress Report (APR) Table A2 via data.ca.gov, resource fe505d9b-8c36-42ba-ba30-08bc4f34e022 (dataset modified 2026-10-30)",
+ "checked": "2026-11-07",
+ "programs": [
+  {
+   "name": "Other",
+   "projects": 293
+  },
+  {
+   "name": "LIHTC",
+   "projects": 60
+  },
+  {
+   "name": "HOME",
+   "projects": 38
+  },
+  {
+   "name": "CDLAC",
+   "projects": 24
+  },
+  {
+   "name": "PBS8",
+   "projects": 23
+  },
+  {
+   "name": "RDA",
+   "projects": 19
+  },
+  {
+   "name": "LHTF",
+   "projects": 10
+  },
+  {
+   "name": "MHSA",
+   "projects": 6
+  },
+  {
+   "name": "HK",
+   "projects": 6
+  },
+  {
+   "name": "CDBG",
+   "projects": 6
+  },
+  {
+   "name": "SNHP",
+   "projects": 5
+  },
+  {
+   "name": "AHSC",
+   "projects": 3
+  },
+  {
+   "name": "VHHP",
+   "projects": 3
+  },
+  {
+   "name": "HHAP",
+   "projects": 3
+  },
+  {
+   "name": "MRB",
+   "projects": 2
+  },
+  {
+   "name": "AHP",
+   "projects": 1
+  },
+  {
+   "name": "CESH",
+   "projects": 1
+  },
+  {
+   "name": "NPLH",
+   "projects": 1
+  }
+ ]
+}

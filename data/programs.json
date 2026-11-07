@@ -1,0 +1,81 @@
+{
+  "about": "Funding programs for affordable OWNERSHIP homes in Orange County. Terms come only from the program page as read by the organizers (lane repo DATA-SOURCES.md, checked 2026-11-06). Where the page gives no per-home amount, amount is null: the tool asks the user for an expected award and labels it ASSUMPTION. Status: confirmed = program page live with stated terms; funds_unconfirmed = terms read but money availability not confirmed (drawings, rounds); unknown = terms not read.",
+  "checked": "2026-11-07",
+  "programs": [
+    {
+      "name": "CalHFA MyHome Assistance",
+      "side": "buyer",
+      "what": "Junior loan for down payment / closing costs",
+      "terms_read": "Up to 3.5% (FHA) or 3% (conventional) of price",
+      "rule": {"type": "pct_of_price", "pct": 0.03, "cap": null},
+      "status": "confirmed",
+      "caveat": "Buyer must qualify and use a CalHFA first mortgage. Uses the conservative 3% conventional figure.",
+      "source_url": "https://www.calhfa.ca.gov/homebuyer/programs/"
+    },
+    {
+      "name": "CalHFA Dream For All",
+      "side": "buyer",
+      "what": "Shared-appreciation down-payment loan",
+      "terms_read": "Up to 20% of price, not to exceed $150,000; voucher registration and randomized drawing",
+      "rule": {"type": "pct_of_price", "pct": 0.20, "cap": 150000},
+      "status": "funds_unconfirmed",
+      "caveat": "Awarded by drawing; availability of funds not confirmed. Never counted toward closing the gap.",
+      "source_url": "https://calhfa.ca.gov/dream/"
+    },
+    {
+      "name": "FHLBank San Francisco WISH",
+      "side": "buyer",
+      "what": "Down-payment grant via a member bank",
+      "terms_read": "Grants for first-time buyers via member banks (per-home amount not read)",
+      "rule": null,
+      "status": "unknown",
+      "caveat": "Enter the amount from your member bank's current WISH allocation.",
+      "source_url": "https://fhlbsf.com/products/community-programs-grants/wish"
+    },
+    {
+      "name": "HCD CalHome (via Homeownership Super NOFA)",
+      "side": "project",
+      "what": "State homeownership funds to local agencies and nonprofits",
+      "terms_read": "Program page and current NOFA live; per-home award not read",
+      "rule": null,
+      "status": "unknown",
+      "caveat": "Competitive round; enter the award you applied for.",
+      "source_url": "https://www.hcd.ca.gov/funding/hosn"
+    },
+    {
+      "name": "FHLBank San Francisco AHP",
+      "side": "project",
+      "what": "Affordable Housing Program competitive grant",
+      "terms_read": "Competitive grants and subsidized advances (amount not read)",
+      "rule": null,
+      "status": "unknown",
+      "caveat": "Competitive; enter the requested amount.",
+      "source_url": "https://fhlbsf.com/products/community-programs-grants/ahp"
+    },
+    {
+      "name": "Orange County Housing Finance Trust",
+      "side": "project",
+      "what": "Countywide housing funds (NOFA)",
+      "terms_read": "Programs page shows a NOFA; no homeownership terms read",
+      "rule": null,
+      "status": "unknown",
+      "caveat": "Check whether the current NOFA allows ownership projects.",
+      "source_url": "https://ochft.org/programs"
+    },
+    {
+      "name": "Santa Ana My First Home",
+      "side": "buyer",
+      "city": "Santa Ana",
+      "what": "City down-payment loan",
+      "terms_read": "Program page loads; loan terms NOT read at the source",
+      "rule": null,
+      "status": "unknown",
+      "caveat": "Only for Santa Ana homes. Read terms on the page before entering an amount.",
+      "source_url": "https://santa-ana.org/my-first-home"
+    }
+  ],
+  "excluded": [
+    {"name": "CalHFA Forgivable Equity Builder", "reason": "No official page found; a 2022 CalHFA board handout said it was winding down. Not modeled as open."},
+    {"name": "LIHTC", "reason": "Rental only; not applicable to ownership."}
+  ]
+}
