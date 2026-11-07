@@ -32,9 +32,10 @@ async function boot() {
   try { const t = localStorage.getItem('gs-theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
   buildStatic();
   bind();
+  bindStudio();
   render(true);
   drawSpark();
-  reveal();
+  buildSkyline();
   fetch('/api/health').then((r) => r.json()).then((h) => {
     const p = $('#claudePill');
     p.textContent = h.claude ? `Claude: ${h.model}` : 'Claude: template mode';
@@ -52,7 +53,11 @@ function buildStatic() {
   }).join('');
   $('#city').innerHTML = opts;
   $('#compareCity').innerHTML = opts;
-  $('#heroProjects').textContent = D.timelines.projects_joined.toLocaleString();
+  $('#chipProjects').textContent = D.timelines.projects_joined.toLocaleString();
+  $('#chipRate').textContent = `${D.pmms.latest.rate30}%`;
+  const slow = D.timelines.cities.filter((c) => c.approval_to_permit.confidence === 'ok').sort((a, b) => b.approval_to_permit.median - a.approval_to_permit.median)[0];
+  if (slow) { $('#chipWait').textContent = `${slow.approval_to_permit.median} mo`; $('#chipWait').parentNode.lastChild.textContent = `wait to permit in ${slow.city}`; }
+  buildPicker();
   const ag = $('#assumeGrid');
   const AS = [
     ['taxRate', 'Buyer property tax rate', 0.001], ['insuranceMo', 'Buyer insurance / mo', 10], ['hoaMo', 'HOA / mo', 10], ['utilitiesMo', 'Utilities / mo', 10],
@@ -91,7 +96,7 @@ function bind() {
   const rs = $('#rateSlider');
   rs.addEventListener('input', () => { S.rate = Number(rs.value); render(); });
   $$('[data-rate]').forEach((b) => b.addEventListener('click', () => { S.rate = Number(b.dataset.rate); render(); }));
-  $('#board').addEventListener('click', (e) => { const r = e.target.closest('.brow'); if (r) { S.juris = r.dataset.j; render(); toast(`City set to ${titleCase(r.dataset.j)}`); } });
+  $('#board').addEventListener('click', (e) => { const r = e.target.closest('.brow'); if (r) setCity(r.dataset.j); });
   const gi = $('#gift'), gs = $('#giftSlider');
   gi.addEventListener('input', () => { S.gift = Number(gi.value) || 0; gs.value = S.gift; renderDonor(); });
   gs.addEventListener('input', () => { S.gift = Number(gs.value); gi.value = S.gift; renderDonor(); });
@@ -166,7 +171,9 @@ function project(overrides = {}) {
 }
 
 function render(structural = false) {
+  const prev = R ? { ...R.per, juris: R.juris } : null;
   R = project();
+  R.juris = S.juris;
   syncForm(structural);
   if (S.tab >= R.homes.length) S.tab = 0;
   buildRegistry();
@@ -177,7 +184,9 @@ function render(structural = false) {
   renderBoard();
   renderRate();
   renderDonor();
+  updatePicker();
   $('#srcCount').textContent = REG.size;
+  if (prev) notifyChanges(prev);
 }
 
 function syncForm(structural) {
@@ -240,8 +249,10 @@ function renderHero() {
   tween($('#heroTime'), R.per.timeCost, fmtK);
   tween($('#heroSubs'), R.per.subsidies, fmtK);
   tween($('#heroTotal'), R.totals.fundraising);
-  $('#heroSub').innerHTML = `for <b>${n} home${n > 1 ? 's' : ''}</b> in <b>${titleCase(S.juris)}</b> at <b class="src" data-k="rate">${S.rate.toFixed(2)}%</b>`;
-  $('#heroRate').textContent = `${S.rate.toFixed(2)}%`;
+  const sub = $('#heroSub');
+  const cityHtml = `<span class="city-swap" data-c="${S.juris}">${cityName(S.juris)}</span>`;
+  const keepCity = sub.querySelector('.city-swap')?.dataset.c === S.juris;
+  sub.innerHTML = `<b>${n} home${n > 1 ? 's' : ''}</b> in ${keepCity ? sub.querySelector('.city-swap').outerHTML : cityHtml} at <b class="src" data-k="rate">${S.rate.toFixed(2)}%</b>`;
   tween($('#eqFam'), R.per.family, fmtK);
   tween($('#eqSub'), R.per.subsidies, fmtK);
   tween($('#eqRent'), R.per.rent, fmtK);
@@ -602,6 +613,169 @@ function toast(t) { const n = $('#toast'); n.textContent = t; n.classList.add('s
 function reveal() {
   const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.08 });
   $$('.reveal').forEach((n) => io.observe(n));
+}
+
+/* ================= STUDIO LAYER ================= */
+const cityName = (j) => cityRow(j)?.city || titleCase(j);
+
+function buildPicker() {
+  const list = $('#cpList');
+  const cities = D.timelines.cities.slice().sort((a, b) => a.city.localeCompare(b.city));
+  const max = Math.max(...cities.map((c) => c.approval_to_permit.median || 0), 1);
+  list.innerHTML = cities.map((c, i) => {
+    const m = c.approval_to_permit;
+    const has = m.median != null;
+    return `<div class="cp-item ${has ? '' : 'none'}" role="option" data-j="${c.juris_name}" data-name="${c.city.toLowerCase()}" style="--i:${i}">
+      <span>${c.city}</span>
+      <span class="cp-bar">${has ? `<i style="width:${Math.max(4, (m.median / max) * 100)}%"></i>` : ''}</span>
+      <span class="cp-mo">${has ? `${m.median} mo` : 'no data'}</span></div>`;
+  }).join('');
+}
+
+function updatePicker() {
+  const c = cityRow(S.juris), m = c?.approval_to_permit;
+  $('#cpCity').textContent = cityName(S.juris);
+  $('#cpMeta').textContent = m && m.median != null ? `${m.median} mo to permit · ${m.n} projects` : 'Not enough state data · using an assumption';
+  $$('.cp-item').forEach((n) => n.classList.toggle('sel', n.dataset.j === S.juris));
+}
+
+function setCity(j) {
+  if (!j || j === S.juris) { closePicker(); return; }
+  S.juris = j;
+  closePicker();
+  render();
+}
+
+function openPicker(invite = false) {
+  const p = $('#cityPicker');
+  // restart item stagger
+  $$('.cp-item', p).forEach((n) => { n.style.animation = 'none'; void n.offsetWidth; n.style.animation = ''; });
+  p.classList.add('open');
+  if (invite) p.classList.add('invite');
+  setTimeout(() => $('#cpSearch').focus({ preventScroll: true }), 120);
+  const sel = $('.cp-item.sel', p), list = $('#cpList');
+  if (sel) list.scrollTop = sel.offsetTop - list.clientHeight / 2;
+}
+function closePicker() { const p = $('#cityPicker'); p.classList.remove('open', 'invite'); $('#cpSearch').value = ''; $$('.cp-item').forEach((n) => (n.style.display = '')); }
+
+function bindStudio() {
+  $('#startBtn').addEventListener('click', () => openStudio());
+  $('#exampleBtn').addEventListener('click', () => openStudio('synthetic'));
+  $('#homeBtn').addEventListener('click', goHome);
+  $('#cpBtn').addEventListener('click', (e) => { e.stopPropagation(); $('#cityPicker').classList.contains('open') ? closePicker() : openPicker(); });
+  $('#cpList').addEventListener('click', (e) => { const it = e.target.closest('.cp-item'); if (it) setCity(it.dataset.j); });
+  $('#cpSearch').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    $$('.cp-item').forEach((n) => (n.style.display = n.dataset.name.includes(q) ? '' : 'none'));
+  });
+  $('#cpSearch').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { const first = $$('.cp-item').find((n) => n.style.display !== 'none'); if (first) setCity(first.dataset.j); }
+    if (e.key === 'Escape') closePicker();
+  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#cityPicker')) closePicker(); });
+  $('#tabbar').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) switchTab(b.dataset.tab); });
+  window.addEventListener('resize', moveInk);
+}
+
+function openStudio(preset) {
+  document.body.classList.add('leaving');
+  setTimeout(() => {
+    document.body.classList.remove('at-landing', 'leaving');
+    document.body.classList.add('at-studio');
+    $('#studio').setAttribute('aria-hidden', 'false');
+    window.scrollTo(0, 0);
+    // replay chart growth
+    const wf = $('#waterfall'); wf._init = false; wf.innerHTML = '';
+    $$('.brow').forEach((r) => r.remove());
+    ['heroLeft', 'heroGap', 'heroTime', 'heroSubs', 'heroTotal'].forEach((id) => { $('#' + id).dataset.v = 0; });
+    R = null;
+    if (preset) applyPreset(preset); else render(true);
+    switchTab('bill', true);
+    if (!preset) setTimeout(() => openPicker(true), 950);
+  }, 520);
+}
+
+function goHome() {
+  closePicker();
+  document.body.classList.remove('at-studio');
+  document.body.classList.add('at-landing');
+  $('#studio').setAttribute('aria-hidden', 'true');
+  buildSkyline();
+  window.scrollTo(0, 0);
+}
+
+function switchTab(name, silent = false) {
+  $$('#tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+  $$('.tab-panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === name));
+  moveInk(); setTimeout(moveInk, 80); setTimeout(moveInk, 700);
+  if (name === 'time') { $$('.bfill').forEach((f) => (f.style.width = '0')); requestAnimationFrame(() => renderBoard()); }
+  if (name === 'rate') drawSpark();
+  if (name === 'bill' && !silent) { const wf = $('#waterfall'); wf._init = false; wf.innerHTML = ''; renderWaterfall(); }
+  if (!silent) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function moveInk() {
+  const b = $('#tabbar button.active'), ink = $('#tabInk');
+  if (!b || !ink) return;
+  ink.style.left = b.offsetLeft + 'px';
+  ink.style.width = b.offsetWidth + 'px';
+}
+
+function notifyChanges(prev) {
+  const items = [
+    ['fundraising', '#dLeft', null, false],
+    ['gap', '#dGap', '#heroGap', false],
+    ['timeCost', '#dTime', '#heroTime', false],
+    ['subsidies', '#dSubs', '#heroSubs', true],
+  ];
+  let changed = false;
+  for (const [k, slot, tile, goodWhenUp] of items) {
+    const d = R.per[k] - prev[k];
+    if (Math.abs(d) < 1) continue;
+    changed = true;
+    const chip = el('span', { class: `dchip ${(d > 0) !== goodWhenUp ? 'up' : 'down'}` }, `${d > 0 ? '+' : '-'}${fmtK(Math.abs(d))}`);
+    const s = $(slot); s.innerHTML = ''; s.appendChild(chip);
+    if (tile) { const t = $(tile).closest('.stile'); t.classList.remove('pulse'); void t.offsetWidth; t.classList.add('pulse'); }
+  }
+  if (changed) { const r = $('#flashRing'); r.classList.remove('go'); void r.offsetWidth; r.classList.add('go'); }
+  if (prev.juris !== R.juris) toast(`Now showing ${cityName(R.juris)}`);
+  if (prev.fundraising >= 1 && R.per.fundraising < 1) celebrate();
+}
+
+function celebrate() {
+  const box = $('#confetti');
+  const colors = ['#d4622f', '#f08a4b', '#2f8f6b', '#3d6f91', '#c6a48c', '#ffb081', '#8fe0bd'];
+  box.innerHTML = '';
+  for (let i = 0; i < 110; i++) {
+    const p = el('i');
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.background = colors[i % colors.length];
+    p.style.setProperty('--dx', (Math.random() * 200 - 100) + 'px');
+    p.style.setProperty('--rot', (Math.random() * 900 - 450) + 'deg');
+    p.style.setProperty('--dur', (1.6 + Math.random() * 1.6) + 's');
+    p.style.animationDelay = Math.random() * 0.4 + 's';
+    box.appendChild(p);
+  }
+  const b = el('div', { class: 'zero-banner' }, 'Hit $0.');
+  document.body.appendChild(b);
+  setTimeout(() => { box.innerHTML = ''; b.remove(); }, 3400);
+}
+
+function buildSkyline() {
+  const sky = $('#skyline');
+  if (!sky) return;
+  const n = Math.min(30, Math.max(14, Math.floor(window.innerWidth / 52)));
+  const pal = [['#6b4434', '#4b2b1f'], ['#9a6a52', '#6b4434'], ['#c6a48c', '#9a6a52'], ['#3d6f91', '#2c536e'], ['#2f8f6b', '#226b50']];
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const mid = Math.abs(i - (n - 1) / 2) / (n / 2);
+    const h = 28 + Math.random() * 55 + (1 - mid) * 15;
+    const [c1, c2] = pal[Math.floor(Math.random() * pal.length)];
+    const gap = Math.random() < 0.14;
+    const lit = !gap && Math.random() < 0.45;
+    html += `<div class="house ${gap ? 'gap' : ''} ${lit ? 'lit' : ''}" style="--h:${h}%;--c1:${c1};--c2:${c2};--d:${(0.9 + mid * 0.7 + Math.random() * 0.2).toFixed(2)}s;--t:${(2 + Math.random() * 3).toFixed(1)}s"></div>`;
+  }
+  sky.innerHTML = html;
 }
 
 boot();
