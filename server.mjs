@@ -10,6 +10,39 @@ const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PORT = Number(process.env.PORT || 5173);
 const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6';
 
+// In-memory cache for FRED rates (updates weekly; refresh every hour)
+let ratesCache = null;
+let ratesCachedAt = 0;
+
+async function fetchLiveRates() {
+  const key = process.env.FRED_API_KEY;
+  if (!key) return null;
+  if (ratesCache && Date.now() - ratesCachedAt < 3600_000) return ratesCache;
+  try {
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=MORTGAGE30US&api_key=${key}&sort_order=desc&limit=104&file_type=json`;
+    const r = await fetch(url);
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error_message || `FRED HTTP ${r.status}`);
+    const obs = body.observations
+      .filter((o) => o.value !== '.' && !isNaN(Number(o.value)))
+      .map((o) => ({ date: o.date, rate30: Number(Number(o.value).toFixed(2)) }))
+      .reverse();
+    const latest = obs[obs.length - 1];
+    ratesCache = {
+      source: 'Freddie Mac PMMS 30-year fixed via FRED (Federal Reserve Bank of St. Louis)',
+      source_url: 'https://fred.stlouisfed.org/series/MORTGAGE30US',
+      checked: new Date().toISOString().slice(0, 10),
+      latest: { date: latest.date, rate30: latest.rate30 },
+      weekly_last_2y: obs,
+    };
+    ratesCachedAt = Date.now();
+    return ratesCache;
+  } catch (e) {
+    console.error('FRED fetch failed:', e.message);
+    return null;
+  }
+}
+
 // Minimal .env loader (keys stay out of git; see .env.example)
 if (existsSync(join(ROOT, '.env'))) {
   for (const line of readFileSync(join(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
@@ -83,7 +116,15 @@ createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (req.method === 'GET' && url.pathname === '/api/health') {
-      return send(res, 200, { ok: true, claude: Boolean(process.env.ANTHROPIC_API_KEY), model: MODEL });
+      return send(res, 200, { ok: true, claude: Boolean(process.env.ANTHROPIC_API_KEY), model: MODEL, fred: Boolean(process.env.FRED_API_KEY) });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/rates') {
+      const live = await fetchLiveRates();
+      if (live) return send(res, 200, live);
+      // Fall back to static file
+      const file = normalize(join(ROOT, 'data/pmms.json'));
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-cache' });
+      return res.end(await readFile(file));
     }
     if (req.method === 'POST' && url.pathname === '/api/memo') {
       const body = await readBody(req);

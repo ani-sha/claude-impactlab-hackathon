@@ -26,7 +26,7 @@ const REG = new Map(); // source registry: key -> {label, value, tag, source, ur
 /* ---------------- boot ---------------- */
 async function boot() {
   const get = (f) => fetch(`/data/${f}`).then((r) => r.json());
-  const [income, timelines, programs, pmms, deal] = await Promise.all([get('income_limits.json'), get('city_timelines.json'), get('programs.json'), get('pmms.json'), get('synthetic_deal.json')]);
+  const [income, timelines, programs, pmms, deal] = await Promise.all([get('income_limits.json'), get('city_timelines.json'), get('programs.json'), fetch('/api/rates').then((r) => r.json()), get('synthetic_deal.json')]);
   D = { income, timelines, programs, pmms, deal };
   S.rate = pmms.latest.rate30;
   try { const t = localStorage.getItem('gs-theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
