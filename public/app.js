@@ -23,6 +23,18 @@ let S = DEFAULT_STATE();
 let R = null;          // last project result
 const REG = new Map(); // source registry: key -> {label, value, tag, source, url, checked}
 
+/* ---------------- tab navigation ---------------- */
+function switchTab(name) {
+  $$('.tab-page').forEach((p) => p.classList.remove('active'));
+  const page = $(`#page-${name}`);
+  if (page) {
+    page.classList.add('active');
+    setTimeout(() => $$('.reveal', page).forEach((el) => el.classList.add('in')), 40);
+  }
+  $$('.topnav [data-tab]').forEach((a) => a.classList.toggle('active', a.dataset.tab === name));
+  window.scrollTo(0, 0);
+}
+
 /* ---------------- boot ---------------- */
 async function boot() {
   const get = (f) => fetch(`/data/${f}`).then((r) => r.json());
@@ -34,7 +46,7 @@ async function boot() {
   bind();
   render(true);
   drawSpark();
-  reveal();
+  switchTab('bill');
   fetch('/api/health').then((r) => r.json()).then((h) => {
     const p = $('#claudePill');
     p.textContent = h.claude ? `Claude: ${h.model}` : 'Claude: template mode';
@@ -95,6 +107,7 @@ function bind() {
   const gi = $('#gift'), gs = $('#giftSlider');
   gi.addEventListener('input', () => { S.gift = Number(gi.value) || 0; gs.value = S.gift; renderDonor(); });
   gs.addEventListener('input', () => { S.gift = Number(gs.value); gi.value = S.gift; renderDonor(); });
+  $$('.topnav [data-tab]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); switchTab(a.dataset.tab); }));
   $('#memoBtn').addEventListener('click', writeMemo);
   $('#copyMemo').addEventListener('click', () => { navigator.clipboard.writeText($('#memoOut').innerText); toast('Memo copied'); });
   $('#progBtn').addEventListener('click', draftProgram);
