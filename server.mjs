@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PORT = Number(process.env.PORT || 5173);
-const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-5-5';
+const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6';
 
 // Minimal .env loader (keys stay out of git; see .env.example)
 if (existsSync(join(ROOT, '.env'))) {
