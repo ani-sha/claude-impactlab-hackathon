@@ -31,6 +31,7 @@ Plus the lane's three scenarios:
 And: a ranked board of every OC city by months to permit, a City A vs City B comparison, a sources drawer listing every number with SOURCED / ASSUMPTION / SYNTHETIC tags, and two Claude features (below).
 
 **Demo video:** uploaded on the hub
+**Live demo:** <https://gap-stack.onrender.com> (free plan: the first visit after it sleeps takes about 30 to 50 seconds)
 
 ## How Claude is used
 
