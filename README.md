@@ -2,7 +2,7 @@
 
 > **Our tool shows a nonprofit how big the funding gap is on each home, how much of it comes from waiting on the city, and who can help pay for the rest.**
 
-**Lane:** 3 Fund it (pulls in Lane 2's timeline data)
+**Lane:** 3 Fund it
 **Built at:** Claude Impact Lab: UCI × SoCal Affordable Housing, November 7, 2026
 **Live demo:** <https://gap-stack.onrender.com> (free plan: first visit after sleep takes 30–50 seconds)
 
