@@ -146,75 +146,77 @@ stack = build_stack(costs, price, progs, Line("Earned income", earned, "ASSUMPTI
 need = stack["fundraising_needed"]
 programs_total = sum(a for _, a in stack["counted"])
 
+st.write("")
+t_ans, t_help, t_city, t_rate, t_donor, t_memo, t_src = st.tabs(["🏠 Answer", "💰 Who can help pay", "⏱ Compare cities", "📈 If rates change", "🎁 For a donor", "✍️ Funder memo", "📚 Sources"])
+
 # ================================================================ the answer
-st.divider()
-if need > 0:
-    st.markdown(f'<p class="big">Each home is {money(need)} short.</p>'
-                f'<p class="sub">That is <b>{money(need * homes)}</b> to raise for {homes} homes in {city}, '
-                f'after what the family can pay and confirmed help.</p>', unsafe_allow_html=True)
-else:
-    st.markdown(f'<p class="big">Each home pencils. 🎉</p><p class="sub">Surplus of {money(stack["surplus"])} per home.</p>',
+with t_ans:
+    if need > 0:
+        st.markdown(f'<p class="big">Each home is {money(need)} short.</p>'
+                    f'<p class="sub">That is <b>{money(need * homes)}</b> to raise for {homes} homes in {city}, '
+                    f'after what the family can pay and confirmed help.</p>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<p class="big">Each home pencils. 🎉</p><p class="sub">Surplus of {money(stack["surplus"])} per home.</p>',
+                    unsafe_allow_html=True)
+
+    st.write("")
+    k1, k2, k3, k4 = st.columns(4)
+    k1.markdown(f'<div class="card"><h4>It costs to build</h4><div class="v">{money(stack["total_cost"])}</div>'
+                f'<p>land, construction, fees and waiting {tag("ASSUMPTION")}</p></div>', unsafe_allow_html=True)
+    k2.markdown(f'<div class="card"><h4>The family can pay</h4><div class="v">{money(price.value)}</div>'
+                f'<p>capped by state law at 30% of income, today\'s {rate:.2%} rate {tag("SOURCED")}</p></div>', unsafe_allow_html=True)
+    k3.markdown(f'<div class="card"><h4>Waiting on permits adds</h4><div class="v">{money(tcost.value)}</div>'
+                f'<p>{city} takes {months_line.value} months, from {crow["n_projects"]} past projects {tag("SOURCED")}</p></div>',
+                unsafe_allow_html=True)
+    k4.markdown(f'<div class="card"><h4>Confirmed help</h4><div class="v">{money(programs_total + earned)}</div>'
+                f'<p>{len(stack["counted"])} program(s) counted; {len(stack["held_out"])} not yet confirmed</p></div>',
                 unsafe_allow_html=True)
 
-st.write("")
-k1, k2, k3, k4 = st.columns(4)
-k1.markdown(f'<div class="card"><h4>It costs to build</h4><div class="v">{money(stack["total_cost"])}</div>'
-            f'<p>land, construction, fees and waiting {tag("ASSUMPTION")}</p></div>', unsafe_allow_html=True)
-k2.markdown(f'<div class="card"><h4>The family can pay</h4><div class="v">{money(price.value)}</div>'
-            f'<p>capped by state law at 30% of income, today\'s {rate:.2%} rate {tag("SOURCED")}</p></div>', unsafe_allow_html=True)
-k3.markdown(f'<div class="card"><h4>Waiting on permits adds</h4><div class="v">{money(tcost.value)}</div>'
-            f'<p>{city} takes {months_line.value} months, from {crow["n_projects"]} past projects {tag("SOURCED")}</p></div>',
-            unsafe_allow_html=True)
-k4.markdown(f'<div class="card"><h4>Confirmed help</h4><div class="v">{money(programs_total + earned)}</div>'
-            f'<p>{len(stack["counted"])} program(s) counted; {len(stack["held_out"])} not yet confirmed</p></div>',
-            unsafe_allow_html=True)
+    # ================================================================ chart
+    names, vals, measures, texts = [], [], [], []
+    short = {"Land and building purchase": "Land", "Time costs while waiting": "Waiting on permits",
+             "Construction and repairs": "Construction", "Fees, design, legal, sales": "Fees"}
+    for l in costs:
+        names.append(short[l.name]); vals.append(l.value or 0); measures.append("relative"); texts.append(money(l.value))
+    names.append("Family pays"); vals.append(-(price.value or 0)); measures.append("relative"); texts.append(f"−{money(price.value)}")
+    for label, amt, _ in stack["steps"]:
+        names.append(label.replace(" Assistance", "")); vals.append(-amt); measures.append("relative"); texts.append(f"−{money(amt)}")
+    names.append("Still short"); vals.append(0); measures.append("total"); texts.append(money(need))
+    fig = go.Figure(go.Waterfall(x=names, y=vals, measure=measures, text=texts, textposition="outside",
+                                 increasing={"marker": {"color": BROWN}}, decreasing={"marker": {"color": ORANGE}},
+                                 totals={"marker": {"color": GREEN}}, connector={"line": {"color": "#bbb"}}))
+    fig.update_layout(title="One home: what it costs, who pays, what's left", height=400, margin=dict(t=50, b=10),
+                      yaxis_tickprefix="$", yaxis_tickformat=",.0f", showlegend=False)
+    st.plotly_chart(fig, width="stretch")
 
-# ================================================================ chart
-names, vals, measures, texts = [], [], [], []
-short = {"Land and building purchase": "Land", "Time costs while waiting": "Waiting on permits",
-         "Construction and repairs": "Construction", "Fees, design, legal, sales": "Fees"}
-for l in costs:
-    names.append(short[l.name]); vals.append(l.value or 0); measures.append("relative"); texts.append(money(l.value))
-names.append("Family pays"); vals.append(-(price.value or 0)); measures.append("relative"); texts.append(f"−{money(price.value)}")
-for label, amt, _ in stack["steps"]:
-    names.append(label.replace(" Assistance", "")); vals.append(-amt); measures.append("relative"); texts.append(f"−{money(amt)}")
-names.append("Still short"); vals.append(0); measures.append("total"); texts.append(money(need))
-fig = go.Figure(go.Waterfall(x=names, y=vals, measure=measures, text=texts, textposition="outside",
-                             increasing={"marker": {"color": BROWN}}, decreasing={"marker": {"color": ORANGE}},
-                             totals={"marker": {"color": GREEN}}, connector={"line": {"color": "#bbb"}}))
-fig.update_layout(title="One home: what it costs, who pays, what's left", height=400, margin=dict(t=50, b=10),
-                  yaxis_tickprefix="$", yaxis_tickformat=",.0f", showlegend=False)
-st.plotly_chart(fig, use_container_width=True)
 
 # ================================================================ who can help pay
-st.subheader("Who can help pay")
-st.caption("Only money that is confirmed counts. Programs decided by a lottery or a competitive round stay out until you have an award letter.")
-badge = {"confirmed": "🟢 Counts now", "funds_unconfirmed": "🟡 Funds not confirmed", "unknown": "⚪ Amount unknown"}
-counted = {p["name"]: amt for p, amt in stack["counted"]}
-for p in progs:
-    a, b, c = st.columns([3.2, 1.6, 1.2])
-    a.markdown(f"**{p['name']}** · {'helps the buyer' if p['side'] == 'buyer' else 'funds the project'}  \n"
-               f"<small>{p['terms_read']} · [source]({p['source_url']})</small>", unsafe_allow_html=True)
-    b.markdown(badge[p["status"]])
-    c.markdown(f"**{money(counted.get(p['name'], 0))}**/home")
-    if p.get("rule") is None:
-        with a.expander("I have a number for this"):
-            cur = st.session_state.awards.get(p["name"], {"amount": 0, "letter": False})
-            amt = st.number_input("Expected award per home (our estimate)", 0, 500_000, cur["amount"], 5_000, key="a" + p["name"])
-            letter = st.checkbox("Award letter in hand", cur["letter"], key="l" + p["name"])
-            if (amt, letter) != (cur["amount"], cur["letter"]):
-                st.session_state.awards[p["name"]] = {"amount": amt, "letter": letter}
-                st.rerun()
-with st.expander("What financing have real Orange County projects used?"):
-    st.caption(fu["about"] + " Source: " + fu["source"])
-    st.dataframe(pd.DataFrame(fu["programs"]).rename(columns={"name": "program (as reported)"}),
-                 hide_index=True, use_container_width=True)
-st.caption("Not modeled: " + "; ".join(f"{e['name']} ({e['reason']})" for e in pr["excluded"]))
+with t_help:
+    st.caption("Only money that is confirmed counts. Programs decided by a lottery or a competitive round stay out until you have an award letter.")
+    badge = {"confirmed": "🟢 Counts now", "funds_unconfirmed": "🟡 Funds not confirmed", "unknown": "⚪ Amount unknown"}
+    counted = {p["name"]: amt for p, amt in stack["counted"]}
+    for p in progs:
+        a, b, c = st.columns([3.2, 1.6, 1.2])
+        a.markdown(f"**{p['name']}** · {'helps the buyer' if p['side'] == 'buyer' else 'funds the project'}  \n"
+                   f"<small>{p['terms_read']} · [source]({p['source_url']})</small>", unsafe_allow_html=True)
+        b.markdown(badge[p["status"]])
+        c.markdown(f"**{money(counted.get(p['name'], 0))}**/home")
+        if p.get("rule") is None:
+            with a.expander("I have a number for this"):
+                cur = st.session_state.awards.get(p["name"], {"amount": 0, "letter": False})
+                amt = st.number_input("Expected award per home (our estimate)", 0, 500_000, cur["amount"], 5_000, key="a" + p["name"])
+                letter = st.checkbox("Award letter in hand", cur["letter"], key="l" + p["name"])
+                if (amt, letter) != (cur["amount"], cur["letter"]):
+                    st.session_state.awards[p["name"]] = {"amount": amt, "letter": letter}
+                    st.rerun()
+    with st.expander("What financing have real Orange County projects used?"):
+        st.caption(fu["about"] + " Source: " + fu["source"])
+        st.dataframe(pd.DataFrame(fu["programs"]).rename(columns={"name": "program (as reported)"}),
+                     hide_index=True, width="stretch")
+    st.caption("Not modeled: " + "; ".join(f"{e['name']} ({e['reason']})" for e in pr["excluded"]))
+
 
 # ================================================================ more questions
-st.divider()
-st.subheader("More questions")
-t_city, t_rate, t_donor, t_memo = st.tabs(["⏱ Compare cities", "📈 If rates change", "🎁 For a donor", "✍️ Funder memo"])
 
 with t_city:
     known = sorted([r for r in tl["cities"] if r["label"] == "SOURCED"], key=lambda r: r["median_months_entitlement_to_permit"])
@@ -228,7 +230,7 @@ with t_city:
                            orientation="h", text=[f"{r['median_months_entitlement_to_permit']} mo · {r['n_projects']} projects" for r in known],
                            marker_color=[ORANGE if r["city"] in (city, other) else MUTED for r in known]))
     bar.update_layout(height=540, margin=dict(t=10), xaxis_title="median months from approval to building permit")
-    st.plotly_chart(bar, use_container_width=True)
+    st.plotly_chart(bar, width="stretch")
     unknown = [r["city"] for r in tl["cities"] if r["label"] != "SOURCED"]
     st.caption(f"From HCD Annual Progress Report data. Unknown (fewer than {tl['min_projects']} matching projects): "
                f"{', '.join(unknown)}. Measures one stretch (approval → permit) of the ~4-year timeline.")
@@ -246,7 +248,7 @@ with t_rate:
                               mode="lines+markers", line_color=ORANGE))
     rf.update_layout(height=300, yaxis_tickprefix="$", yaxis_tickformat=",.0f", xaxis_title="mortgage rate",
                      yaxis_title="what the family can pay", margin=dict(t=10))
-    st.plotly_chart(rf, use_container_width=True)
+    st.plotly_chart(rf, width="stretch")
     st.caption(f"Source: {PMMS_SRC}.")
 
 with t_donor:
@@ -296,8 +298,7 @@ with t_memo:
         st.json(facts)
 
 # ================================================================ sources
-st.divider()
-with st.expander("📚 Where every number comes from"):
+with t_src:
     rows = [
         ("Family's max monthly housing cost", money(aff["monthly_cap"].value), "public data (law)", f"{aff['monthly_cap'].note}; {STATUTE_URL}"),
         ("Household size for the home", aff["household_size"].value, "public data (law)", aff["household_size"].note),
@@ -311,6 +312,6 @@ with st.expander("📚 Where every number comes from"):
         ("Down payment, tax, insurance, HOA, utilities", f"{down:.1%} / {ptax:.2%} / ${ins} / ${hoa} / ${util}", "our estimate", "Editable in the side panel"),
     ]
     st.dataframe(pd.DataFrame([tuple(map(str, r)) for r in rows], columns=["what", "value", "type", "source"]),
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
     st.caption("Checked 2026-11-07. Law: Cal. Health & Safety Code 50052.5(b),(h), text read via a public mirror because "
                "the official site blocks automated access. Program terms from the organizers' Lane 3 data list.")
