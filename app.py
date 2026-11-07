@@ -29,6 +29,8 @@ st.markdown("""<style>
 .card h4 {margin: 0 0 4px 0; font-size: .95rem; font-weight: 600; opacity: .75}
 .card .v {font-size: 1.7rem; font-weight: 700}
 .card p {margin: 4px 0 0 0; font-size: .88rem; opacity: .8}
+.block-container {padding-top: 2.2rem}
+[data-testid="stAppDeployButton"] {display: none}
 .tag {display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: 9px; margin-left: 4px;
       border: 1px solid rgba(128,128,128,.4)}
 </style>""", unsafe_allow_html=True)
