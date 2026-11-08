@@ -6,6 +6,13 @@
 **Built at:** Claude Impact Lab: UCI × SoCal Affordable Housing, November 7, 2026
 **Live demo:** <https://gap-stack.onrender.com> (free plan: first visit after sleep takes 30–50 seconds)
 
+## Team
+
+- Anisha Mohanty
+- Abhiraj Kale
+- Harsh Deodhar
+- Shrey Deshmukh
+
 ---
 
 ## The problem
